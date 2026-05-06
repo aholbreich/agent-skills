@@ -15,6 +15,8 @@ Use a small, explicit SemVer + Git tag workflow:
 - `main` is always releasable.
 - Pull requests run syntax checks, unit tests, and package dry-run checks.
 - Releases are created by `pnpm version patch|minor|major`.
+- `package.json` uses plain SemVer, e.g. `0.2.0`.
+- Git tags use the standard npm `v` prefix, e.g. `v0.2.0`.
 - Pushing the generated `vX.Y.Z` tag triggers GitHub Actions.
 - GitHub Actions publishes to npm with provenance via npm Trusted Publishing.
 
@@ -31,10 +33,25 @@ pnpm run ci
 Update `CHANGELOG.md`, then bump version:
 
 ```bash
-pnpm version patch   # bug fixes
-pnpm version minor   # new backwards-compatible features
-pnpm version major   # breaking changes
+pnpm version patch   # bug fixes; creates tag vX.Y.Z
+pnpm version minor   # new backwards-compatible features; creates tag vX.Y.Z
+pnpm version major   # breaking changes; creates tag vX.Y.Z
 ```
+
+The repository `.npmrc` pins:
+
+```ini
+tag-version-prefix=v
+```
+
+So the correct state after `pnpm version minor` is for example:
+
+```text
+package.json: "version": "0.2.0"
+git tag:      v0.2.0
+```
+
+Do not create tags like `0.2.0` or `v.0.2.0`.
 
 Push commit and tag:
 
