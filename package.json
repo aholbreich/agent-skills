@@ -1,6 +1,6 @@
 {
   "name": "@aholbreich/agent-skills",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Handcrafted Agent Skills for browser-authenticated Jira and Confluence ingestion, LLM wiki workflows, and developer automation.",
   "license": "MIT",
   "type": "commonjs",
