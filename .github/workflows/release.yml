@@ -25,7 +25,11 @@ jobs:
       - name: Verify tag matches package version
         run: |
           node -e "const v=require('./package.json').version; const tag=process.env.GITHUB_REF_NAME; if (tag !== 'v' + v) { console.error(`Tag ${tag} does not match package version ${v}. Expected v${v}.`); process.exit(1); }"
+      - name: Use npm CLI with Trusted Publishing support
+        run: npm install -g npm@latest
+      - run: npm --version
       - run: pnpm run check
       - run: pnpm test
       - run: pnpm pack --dry-run
-      - run: pnpm publish --access public --provenance --no-git-checks
+      - name: Publish to npm
+        run: npm publish --access public --provenance

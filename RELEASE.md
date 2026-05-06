@@ -6,7 +6,7 @@ This package is published to the public npm registry as:
 @aholbreich/agent-skills
 ```
 
-Maintainer commands use **pnpm**. The registry is still npm, so the final publish command is `pnpm publish` to npm.
+Maintainer commands use **pnpm** for checks, tests, packaging, and version bumps. The GitHub release workflow uses the official **npm CLI** for the final publish because npm Trusted Publishing/provenance is best supported there.
 
 ##  release strategy
 
@@ -59,11 +59,13 @@ Push commit and tag:
 git push origin main --follow-tags
 ```
 
-The tag starts the `release` GitHub Actions workflow and publishes to npm with:
+The tag starts the `release` GitHub Actions workflow. The workflow validates with pnpm, then publishes to npm with:
 
 ```bash
-pnpm publish --access public --provenance --no-git-checks
+npm publish --access public --provenance
 ```
+
+This is intentional: pnpm is used for maintainer ergonomics, while npm CLI is used for npm Trusted Publishing/OIDC provenance.
 
 ## Versioning guidance
 
