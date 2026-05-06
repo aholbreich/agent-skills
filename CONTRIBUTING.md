@@ -13,9 +13,9 @@ Requirements:
 Run checks and tests:
 
 ```bash
-npm run check
-npm test
-npm run ci
+pnpm run check
+pnpm test
+pnpm run ci
 ```
 
 ## Skill guidelines
@@ -45,7 +45,7 @@ Then delete local test exports before committing.
 
 ## Release checklist
 
-1. `npm run ci`
+1. `pnpm run ci`
 2. update `CHANGELOG.md`
 3. bump `package.json` version
 4. commit changes

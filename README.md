@@ -118,7 +118,7 @@ ln -sf ~/.pi/agent/skills/confluence-browser-fetch/scripts/confluence-browser-fe
 From this repository:
 
 ```bash
-npm run check
+pnpm run check
 ./skills/jira-browser-fetch/scripts/jira-browser-fetch.js --help
 ./skills/confluence-browser-fetch/scripts/confluence-browser-fetch.js --help
 ```
@@ -232,9 +232,9 @@ Read [`SECURITY.md`](SECURITY.md). Do not commit fetched `raw/` exports or brows
 Run syntax checks and tests:
 
 ```bash
-npm run check
-npm test
-npm run ci
+pnpm run check
+pnpm test
+pnpm run ci
 ```
 
 Tests use Node's built-in test runner and cover pure helper logic plus CLI smoke/error paths. Package validation is intentionally lightweight because the scripts have no runtime npm dependencies.

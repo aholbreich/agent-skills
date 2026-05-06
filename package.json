@@ -42,10 +42,10 @@
   "scripts": {
     "check": "node --check bin/agent-skills.js && node --check skills/jira-browser-fetch/scripts/jira-browser-fetch.js && node --check skills/jira-browser-fetch/scripts/lib.js && node --check skills/confluence-browser-fetch/scripts/confluence-browser-fetch.js && node --check skills/confluence-browser-fetch/scripts/lib.js",
     "test": "node --test",
-    "ci": "npm run check && npm test && npm pack --dry-run",
-    "pack:dry": "npm pack --dry-run",
-    "prepack": "npm run check",
-    "prepublishOnly": "npm run check && npm test"
+    "ci": "pnpm run check && pnpm test && pnpm pack --dry-run",
+    "pack:dry": "pnpm pack --dry-run",
+    "prepack": "pnpm run check",
+    "prepublishOnly": "pnpm run check && pnpm test"
   },
   "pi": {
     "skills": [

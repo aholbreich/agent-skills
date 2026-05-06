@@ -121,7 +121,7 @@ Skills directory: skills/
 CI runs:
 
 ```bash
-npm run ci
+pnpm run ci
 ```
 
 That includes:
@@ -129,6 +129,6 @@ That includes:
 - JavaScript syntax checks.
 - Unit tests.
 - Skill frontmatter compliance checks.
-- `npm pack --dry-run` package content check.
+- `pnpm pack --dry-run` package content check.
 
 The compliance tests are intentionally local and dependency-free; they validate the parts of the Agent Skills structure that matter for broad tool compatibility.
