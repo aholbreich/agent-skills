@@ -59,7 +59,7 @@ Push commit and tag:
 git push origin main --follow-tags
 ```
 
-The tag starts the `release` GitHub Actions workflow. The workflow validates with pnpm, then publishes to npm with:
+The tag starts the `release` GitHub Actions workflow. The release job uses Node.js 24 so the bundled npm CLI is new enough for Trusted Publishing/provenance. The workflow validates with pnpm, then publishes to npm with:
 
 ```bash
 npm publish --access public --provenance
