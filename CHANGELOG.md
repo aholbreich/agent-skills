@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- `jira-browser-fetch --backlog URL|BOARD_ID` to fetch all issues from a Jira Software board backlog through the authenticated browser session.
+- Backlog manifests at `raw/jira-board-<board-id>-backlog.json` and a `backlogs` section in `raw/jira-browser-fetch-run.json`.
+- Documentation examples for natural-language user requests that should invoke the skills.
+
 ## 0.1.0 - 2026-05-06
 
 Initial public package structure.

@@ -1,13 +1,13 @@
 ---
 name: jira-browser-fetch
-description: Fetch Jira issue raw data through an authenticated Chrome browser session when jira-cli/API tokens do not work, especially with Microsoft/SSO. Use to archive Jira issues, linked tickets, rendered HTML/XML, remote links, and attachments into a raw wiki folder.
+description: Fetch Jira issue raw data through an authenticated Chrome browser session when jira-cli/API tokens do not work, especially with Microsoft/SSO. Use to archive Jira issues, Jira Software board backlogs, JQL result sets, linked tickets, rendered HTML/XML, remote links, and attachments into a raw wiki folder.
 license: MIT
 compatibility: Agent Skills standard. Tested with Pi; installable into Claude Code, Codex, OpenClaw/generic .agents skills directories. Requires Node.js 22+ with built-in fetch/WebSocket and Google Chrome/Chromium with remote debugging. No npm dependencies.
 ---
 
 # Jira Browser Fetch
 
-Use this skill when Jira API-token authentication fails or the organization uses Microsoft/SSO and the user wants Jira issues archived into a local raw/wiki folder.
+Use this skill when Jira API-token authentication fails or the organization uses Microsoft/SSO and the user wants Jira issues, Jira Software board backlogs, or JQL result sets archived into a local raw/wiki folder.
 
 The bundled script opens/reuses Chrome with a dedicated profile, lets the user complete SSO once, extracts Jira cookies via Chrome DevTools, and fetches Jira REST/HTML/XML/attachments into a raw directory.
 
@@ -33,11 +33,22 @@ Important options:
 --depth N          recursion depth for connected tickets
 --scan-text        find issue keys in JSON/XML/HTML text, not only formal Jira links
 --jql JQL          search Jira with JQL and fetch all matching issues
+--backlog URL|ID   fetch all issues from a Jira Software board backlog URL or board id
 --assignee-me      fetch all issues assigned to current Jira user
 --max-attachment-size S  skip attachment files larger than S (default 5mb; use unlimited to disable)
 --prefix A,B,C     only follow keys with these project prefixes
 --wait SEC         SSO/session wait timeout per issue
 ```
+
+## Example User Requests
+
+Use this skill for user requests like:
+
+- "Fetch Jira issue `PROJ-123` into `raw/` through my browser session."
+- "Archive this Jira backlog for my LLM wiki: `https://example.atlassian.net/jira/software/c/projects/ABC/boards/42/backlog?epics=visible`."
+- "Fetch all Jira issues matching this JQL into the wiki raw folder."
+- "Pull my assigned Jira issues without asking me for an API token."
+- "Fetch this ticket and all linked tickets, including attachments under the default size limit."
 
 ## Typical Workflow
 
@@ -64,6 +75,12 @@ scripts/jira-browser-fetch.js \
   --server https://example.atlassian.net \
   --raw-dir ./raw \
   --assignee-me
+
+# Fetch every issue currently visible in a Jira Software board backlog:
+scripts/jira-browser-fetch.js \
+  --server https://example.atlassian.net \
+  --raw-dir ./raw \
+  --backlog 'https://example.atlassian.net/jira/software/c/projects/ABC/boards/42/backlog?epics=visible'
 ```
 
 ## Output Layout
@@ -86,6 +103,12 @@ A run manifest is written to:
 
 ```text
 raw/jira-browser-fetch-run.json
+```
+
+Backlog fetches also write:
+
+```text
+raw/jira-board-<board-id>-backlog.json
 ```
 
 ## Installation / PATH

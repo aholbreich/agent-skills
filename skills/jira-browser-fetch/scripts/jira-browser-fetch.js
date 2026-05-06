@@ -6,7 +6,15 @@ const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
-const { parseSize, formatBytes, safeName, issueKeysFromText } = require('./lib');
+const {
+  parseSize,
+  formatBytes,
+  safeName,
+  issueKeysFromText,
+  parseBacklogInput,
+  backlogApiUrl,
+  issueKeysFromAgilePage,
+} = require('./lib');
 
 function usage() {
   console.log(`Usage: jira-browser-fetch [ISSUE-KEY ...] [options]
@@ -21,8 +29,9 @@ Options:
   --depth N                Connected fetch depth (default: 1 with --connected, otherwise 0)
   --scan-text              Include issue keys found anywhere in issue JSON/XML/HTML text
   --jql JQL                Search Jira with JQL and fetch all matching issues
+  --backlog URL|BOARD_ID   Fetch all issues from a Jira Software board backlog URL or board id
   --assignee-me            Fetch all issues assigned to current Jira user
-  --max-search-results N   Max issues to add per JQL search (default: 1000)
+  --max-search-results N   Max issues to add per JQL/backlog search (default: 1000)
   --max-attachment-size S  Skip attachment downloads larger than S (default: 5mb; use unlimited to disable)
   --prefix A,B,C           Only fetch referenced keys with these project prefixes
   --wait SEC               Wait time for SSO/session per issue (default: 900)
@@ -37,7 +46,8 @@ Examples:
   jira-browser-fetch SWING-4770 --raw-dir /path/wiki/raw
   jira-browser-fetch SWING-4770 --connected --prefix SWING,SSD,EC --raw-dir ./raw
   jira-browser-fetch --assignee-me --raw-dir ./raw
-  JIRA_SERVER=https://example.atlassian.net jira-browser-fetch PROJ-123 --connected
+  jira-browser-fetch --backlog 'https://example.atlassian.net/jira/software/c/projects/ABC/boards/42/backlog?epics=visible' --raw-dir ./raw
+  JIRA_SERVER=https://example.atlassian.net jira-browser-fetch --backlog 42 --connected
 `);
 }
 
@@ -51,6 +61,7 @@ const opts = {
   depth: undefined,
   scanText: false,
   jqls: [],
+  backlogs: [],
   assigneeMe: false,
   maxSearchResults: Number(process.env.JIRA_MAX_SEARCH_RESULTS || 1000),
   maxAttachmentBytes: parseSize(process.env.JIRA_MAX_ATTACHMENT_SIZE || process.env.JIRA_MAX_ATTACHMENT_BYTES || '5mb'),
@@ -70,6 +81,7 @@ for (let i = 2; i < process.argv.length; i++) {
   else if (a === '--depth') opts.depth = Number(process.argv[++i]);
   else if (a === '--scan-text') opts.scanText = true;
   else if (a === '--jql') opts.jqls.push(process.argv[++i]);
+  else if (a === '--backlog') opts.backlogs.push(process.argv[++i]);
   else if (a === '--assignee-me') opts.assigneeMe = true;
   else if (a === '--max-search-results') opts.maxSearchResults = Number(process.argv[++i]);
   else if (a === '--max-attachment-size') opts.maxAttachmentBytes = parseSize(process.argv[++i]);
@@ -84,7 +96,7 @@ for (let i = 2; i < process.argv.length; i++) {
   else { console.error(`Unknown argument: ${a}`); process.exit(2); }
 }
 
-if (!issues.length && !opts.jqls.length && !opts.assigneeMe) { usage(); process.exit(2); }
+if (!issues.length && !opts.jqls.length && !opts.backlogs.length && !opts.assigneeMe) { usage(); process.exit(2); }
 if (opts.assigneeMe) opts.jqls.push('assignee = currentUser() ORDER BY updated DESC');
 if (opts.depth === undefined) opts.depth = opts.connected ? 1 : 0;
 if (opts.depth > 0) opts.connected = true;
@@ -257,6 +269,65 @@ async function searchJql(jql) {
   }
 
   return [...new Set(found)];
+}
+
+async function fetchBacklogPageWithWait(url) {
+  const deadline = Date.now() + opts.waitSec * 1000;
+  let last = '';
+  while (Date.now() < deadline) {
+    try {
+      const cookie = await getCookieHeader();
+      if (!cookie) {
+        last = 'no Jira cookies yet';
+      } else {
+        const result = await fetchJson(url, cookie, 'application/json');
+        if (result.status === 200 && result.json && Array.isArray(result.json.issues)) return result.json;
+        last = `HTTP ${result.status} ${(result.text || '').slice(0, 180).replace(/\s+/g, ' ')}`;
+      }
+    } catch (e) { last = e.message; }
+    process.stdout.write(`\r${new Date().toLocaleTimeString()} waiting for authenticated Jira backlog session: ${last.padEnd(120).slice(0, 120)}`);
+    await sleep(3000);
+  }
+  process.stdout.write('\n');
+  throw new Error(`Could not fetch Jira backlog. Last result: ${last}`);
+}
+
+async function searchBacklog(input) {
+  const backlog = parseBacklogInput(input, opts.server);
+  await ensureBrowser(backlog.browseUrl);
+  console.log(`If prompted in Chrome, complete SSO for: ${backlog.browseUrl}`);
+  console.log(`Waiting up to ${opts.waitSec}s for Jira backlog access...`);
+
+  const found = [];
+  let startAt = 0;
+  const pageSize = Math.min(100, Math.max(1, opts.maxSearchResults || 1000));
+
+  while (found.length < opts.maxSearchResults) {
+    const limit = Math.min(pageSize, opts.maxSearchResults - found.length);
+    const url = backlogApiUrl(opts.server, backlog.boardId, startAt, limit);
+    const page = await fetchBacklogPageWithWait(url);
+    const keys = issueKeysFromAgilePage(page);
+    for (const key of keys) found.push(key);
+    console.log(`Fetched backlog page board=${backlog.boardId} startAt=${startAt}, issues=${keys.length}${typeof page.total === 'number' ? `, total=${page.total}` : ''}`);
+    if (page.isLast === true) break;
+    if (typeof page.total === 'number' && startAt + keys.length >= page.total) break;
+    if (!keys.length) break;
+    startAt += keys.length;
+  }
+
+  const keys = [...new Set(found)];
+  const manifest = {
+    fetchedAt: new Date().toISOString(),
+    server: opts.server,
+    boardId: backlog.boardId,
+    source: backlog.source,
+    browseUrl: backlog.browseUrl,
+    endpoint: `/rest/agile/1.0/board/${backlog.boardId}/backlog`,
+    issueCount: keys.length,
+    issues: keys,
+  };
+  await fsp.writeFile(path.join(opts.rawDir, `jira-board-${backlog.boardId}-backlog.json`), JSON.stringify(manifest, null, 2));
+  return manifest;
 }
 
 function addKey(set, key) {
@@ -455,6 +526,22 @@ async function main() {
   const seen = new Set();
   const failed = [];
   const searches = [];
+  const backlogs = [];
+
+  for (const backlogInput of opts.backlogs) {
+    console.log(`\n===== Fetching Jira backlog: ${backlogInput} =====`);
+    try {
+      const backlog = await searchBacklog(backlogInput);
+      backlogs.push(backlog);
+      console.log(`Backlog board ${backlog.boardId} matched ${backlog.issueCount} issue(s): ${backlog.issues.join(' ') || '(none)'}`);
+      for (const key of backlog.issues) {
+        if (!queue.some(q => q.key === key)) queue.push({ key, depth: 0, from: `Backlog board ${backlog.boardId}` });
+      }
+    } catch (e) {
+      failed.push({ key: `BACKLOG: ${backlogInput}`, error: e.message });
+      console.error(`BACKLOG FAILED: ${e.message}`);
+    }
+  }
 
   for (const jql of opts.jqls) {
     console.log(`\n===== Searching JQL: ${jql} =====`);
@@ -489,7 +576,7 @@ async function main() {
     }
   }
 
-  const runMeta = { fetchedAt: new Date().toISOString(), server: opts.server, rawDir: opts.rawDir, requested: issues, searches, fetched: [...seen].filter(k => !failed.some(f => f.key === k)), failed };
+  const runMeta = { fetchedAt: new Date().toISOString(), server: opts.server, rawDir: opts.rawDir, requested: issues, searches, backlogs, fetched: [...seen].filter(k => !failed.some(f => f.key === k)), failed };
   await fsp.writeFile(path.join(opts.rawDir, 'jira-browser-fetch-run.json'), JSON.stringify(runMeta, null, 2));
 
   if (failed.length) {

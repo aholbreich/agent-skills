@@ -40,6 +40,46 @@ function shouldSkipAttachment(size, maxAttachmentBytes) {
   return Number.isFinite(n) && n > maxAttachmentBytes;
 }
 
+function parseBacklogInput(input, server = '') {
+  if (!input) throw new Error('Missing Jira backlog URL or board id');
+  const value = String(input).trim();
+  const numeric = value.match(/^\d+$/);
+  if (numeric) {
+    return {
+      boardId: Number(value),
+      source: value,
+      browseUrl: server ? `${String(server).replace(/\/$/, '')}/jira/software/c/boards/${value}/backlog` : value,
+    };
+  }
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`Invalid Jira backlog URL or board id: ${input}`);
+  }
+
+  const m = url.pathname.match(/\/boards\/(\d+)(?:\/backlog)?\b/);
+  if (!m) throw new Error(`Could not parse Jira board id from backlog URL: ${input}`);
+
+  return {
+    boardId: Number(m[1]),
+    source: value,
+    browseUrl: value,
+  };
+}
+
+function backlogApiUrl(server, boardId, startAt, maxResults) {
+  const base = String(server || '').replace(/\/$/, '');
+  const params = new URLSearchParams({ startAt: String(startAt), maxResults: String(maxResults) });
+  return `${base}/rest/agile/1.0/board/${boardId}/backlog?${params}`;
+}
+
+function issueKeysFromAgilePage(page) {
+  const issues = page && Array.isArray(page.issues) ? page.issues : [];
+  return issues.map(issue => issue && issue.key).filter(Boolean);
+}
+
 module.exports = {
   DEFAULT_MAX_ATTACHMENT_BYTES,
   parseSize,
@@ -47,4 +87,7 @@ module.exports = {
   safeName,
   issueKeysFromText,
   shouldSkipAttachment,
+  parseBacklogInput,
+  backlogApiUrl,
+  issueKeysFromAgilePage,
 };

@@ -47,10 +47,43 @@ test('jira shouldSkipAttachment honors size threshold', () => {
   assert.equal(lib.shouldSkipAttachment(999999999, Infinity), false);
 });
 
+test('jira parseBacklogInput accepts Jira Software backlog URLs and board ids', () => {
+  assert.deepEqual(
+    lib.parseBacklogInput('https://example.atlassian.net/jira/software/c/projects/SW2/boards/1771/backlog?epics=visible'),
+    {
+      boardId: 1771,
+      source: 'https://example.atlassian.net/jira/software/c/projects/SW2/boards/1771/backlog?epics=visible',
+      browseUrl: 'https://example.atlassian.net/jira/software/c/projects/SW2/boards/1771/backlog?epics=visible',
+    }
+  );
+  assert.deepEqual(
+    lib.parseBacklogInput('1771', 'https://example.atlassian.net/'),
+    {
+      boardId: 1771,
+      source: '1771',
+      browseUrl: 'https://example.atlassian.net/jira/software/c/boards/1771/backlog',
+    }
+  );
+  assert.throws(() => lib.parseBacklogInput('https://example.atlassian.net/issues/?jql=project=SW2'), /Could not parse/);
+});
+
+test('jira backlogApiUrl and issueKeysFromAgilePage support backlog pagination helpers', () => {
+  assert.equal(
+    lib.backlogApiUrl('https://example.atlassian.net/', 1771, 100, 50),
+    'https://example.atlassian.net/rest/agile/1.0/board/1771/backlog?startAt=100&maxResults=50'
+  );
+  assert.deepEqual(
+    lib.issueKeysFromAgilePage({ issues: [{ key: 'SW2-1' }, {}, { key: 'SW2-2' }] }),
+    ['SW2-1', 'SW2-2']
+  );
+  assert.deepEqual(lib.issueKeysFromAgilePage({}), []);
+});
+
 test('jira CLI --help exits successfully without browser', () => {
   const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Usage: jira-browser-fetch/);
+  assert.match(result.stdout, /--backlog URL\|BOARD_ID/);
 });
 
 test('jira CLI fails fast when server is missing', () => {

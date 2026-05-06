@@ -8,7 +8,7 @@ This repository is a pure skills package. It currently contains browser-authenti
 
 | Skill | Purpose |
 |---|---|
-| [`jira-browser-fetch`](skills/jira-browser-fetch/) | Fetch Jira issue JSON, rendered HTML/XML, linked/referenced issues, JQL result sets, and attachments through an authenticated Chrome session. |
+| [`jira-browser-fetch`](skills/jira-browser-fetch/) | Fetch Jira issue JSON, rendered HTML/XML, linked/referenced issues, Jira Software board backlogs, JQL result sets, and attachments through an authenticated Chrome session. |
 | [`confluence-browser-fetch`](skills/confluence-browser-fetch/) | Fetch Confluence page JSON, storage/view HTML, browser HTML, descendants, CQL result sets, and attachments through an authenticated Chrome session. |
 
 ## Compatibility
@@ -169,6 +169,23 @@ jira-browser-fetch \
   --raw-dir ./raw \
   --jql 'assignee = currentUser() ORDER BY updated DESC'
 ```
+
+Fetch a Jira Software board backlog:
+
+```bash
+jira-browser-fetch \
+  --server https://example.atlassian.net \
+  --raw-dir ./raw \
+  --backlog 'https://example.atlassian.net/jira/software/c/projects/ABC/boards/42/backlog?epics=visible'
+```
+
+Example user requests that should invoke this skill:
+
+- "Fetch all Jira issues from this backlog URL into `raw/`."
+- "Archive board 42's Jira backlog for my LLM wiki."
+- "Fetch `PROJ-123` through my browser session and include linked issues."
+- "Pull my assigned Jira issues without asking me for an API token."
+- "Use this JQL and store the raw Jira evidence under the wiki raw folder."
 
 ## Confluence examples
 
