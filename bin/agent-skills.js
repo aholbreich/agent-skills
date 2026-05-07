@@ -27,6 +27,11 @@ function usage() {
 
 Install this package's Agent Skills into a local skills directory.
 
+Recommended cross-agent installer:
+  npx skills add aholbreich/agent-skills -g
+
+This fallback installer copies files for environments where the Skills CLI is unavailable.
+
 Commands:
   install                 Install skills (default command)
   list                    List bundled skills
@@ -40,6 +45,7 @@ Options for install:
   --dry-run               Show what would be copied without writing
 
 Examples:
+  npx skills add aholbreich/agent-skills -g
   npx @aholbreich/agent-skills
   npx @aholbreich/agent-skills install --target agents --force
   npx @aholbreich/agent-skills install --target pi --force

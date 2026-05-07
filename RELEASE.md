@@ -91,7 +91,15 @@ jira-browser-fetch --help
 confluence-browser-fetch --help
 ```
 
-Test one-shot npx/npm-exec installer:
+Test Skills CLI discovery, which is the recommended cross-agent install path:
+
+```bash
+npx skills add aholbreich/agent-skills --list
+# Optional smoke test in an empty temp directory:
+# npx skills add aholbreich/agent-skills -g --skill '*' -y
+```
+
+Test the package fallback npx/npm-exec installer:
 
 ```bash
 pnpm dlx @aholbreich/agent-skills list

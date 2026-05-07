@@ -57,6 +57,18 @@ test('package exposes conventional skills directory for registry discovery', () 
   assert.deepEqual(pkg.pi.skills, ['skills']);
   assert.ok(pkg.keywords.includes('pi-package'));
   assert.ok(pkg.keywords.includes('agent-skills'));
+  assert.ok(pkg.keywords.includes('skills.sh'));
   assert.ok(pkg.files.includes('skills/'));
   assert.ok(pkg.files.includes('COMPATIBILITY.md'));
+});
+
+test('docs advertise Skills CLI and Pi-native install paths', () => {
+  const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8');
+  const compatibility = fs.readFileSync(path.join(repoRoot, 'COMPATIBILITY.md'), 'utf8');
+
+  for (const text of [readme, compatibility]) {
+    assert.match(text, /npx skills add aholbreich\/agent-skills/);
+    assert.match(text, /pi install npm:@aholbreich\/agent-skills/);
+    assert.match(text, /collision/i);
+  }
 });

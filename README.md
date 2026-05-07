@@ -15,18 +15,16 @@ This repository is a pure skills package. It currently contains browser-authenti
 
 This repository follows the Agent Skills directory convention: each skill lives under `skills/<skill-name>/SKILL.md` with matching frontmatter.
 
-Supported install targets:
+Recommended install paths:
 
-| Target | Command |
+| Use case | Command |
 |---|---|
-| Pi | `pi install npm:@aholbreich/agent-skills` |
-| Pi via npx | `npx @aholbreich/agent-skills --target pi` |
-| Claude Code-style global skills | `npx @aholbreich/agent-skills --target claude` |
-| Codex-style global skills | `npx @aholbreich/agent-skills --target codex` |
-| OpenClaw / generic `.agents/skills` | `npx @aholbreich/agent-skills --target agents` |
-| Project-local generic skills | `npx @aholbreich/agent-skills --target project-agents` |
+| Cross-agent wizard (recommended) | `npx skills add aholbreich/agent-skills -g` |
+| Pi package-managed install | `pi install npm:@aholbreich/agent-skills` |
+| Project-local/team skills | `npx skills add aholbreich/agent-skills` |
+| Package fallback without the aggregator | `npx @aholbreich/agent-skills` |
 
-See [`COMPATIBILITY.md`](COMPATIBILITY.md) for details.
+See [`COMPATIBILITY.md`](COMPATIBILITY.md) for details, including collision behavior.
 
 ## Requirements
 
@@ -37,27 +35,60 @@ See [`COMPATIBILITY.md`](COMPATIBILITY.md) for details.
 
 No npm runtime dependencies are required.
 
-## Install with Pi
+## Recommended install with the Skills CLI
 
-From GitHub:
+For most users, use the open `skills` installer. It discovers the skills in this repository, prompts for compatible agents, and symlinks agent-specific installs to a single managed source by default.
+
+Global/user install:
 
 ```bash
-pi install git:github.com/aholbreich/agent-skills
+npx skills add aholbreich/agent-skills -g
 ```
 
 Project-local install, useful for teams:
 
 ```bash
-pi install -l git:github.com/aholbreich/agent-skills
+npx skills add aholbreich/agent-skills
+```
+
+List available skills without installing:
+
+```bash
+npx skills add aholbreich/agent-skills --list
+```
+
+Non-interactive examples:
+
+```bash
+npx skills add aholbreich/agent-skills -g --skill '*' -y
+npx skills add aholbreich/agent-skills -g --agent claude-code --agent codex --skill jira-browser-fetch -y
+```
+
+Use `--copy` only when symlinks are not supported in your environment.
+
+## Pi-native install
+
+If you only use Pi and want Pi to manage package updates, install the npm package directly:
+
+```bash
+pi install npm:@aholbreich/agent-skills
+```
+
+Project-local Pi package install, useful for teams that already standardize on Pi packages:
+
+```bash
+pi install -l npm:@aholbreich/agent-skills
 ```
 
 Try without installing:
 
 ```bash
-pi -e git:github.com/aholbreich/agent-skills
+pi -e npm:@aholbreich/agent-skills
 ```
 
-## One-shot install with npx
+## Package fallback with npx
+
+If you cannot use the `skills` aggregator, this package also ships a small installer. It copies bundled skills into a selected skills directory.
 
 Install bundled skills into the generic Agent Skills directory `~/.agents/skills`:
 
@@ -65,24 +96,13 @@ Install bundled skills into the generic Agent Skills directory `~/.agents/skills
 npx @aholbreich/agent-skills
 ```
 
-This is equivalent to:
+Install for a specific target:
 
 ```bash
-npx @aholbreich/agent-skills --target agents
-```
-
-Install into a project-local `.pi/skills` directory:
-
-```bash
-npx @aholbreich/agent-skills install --target project
-```
-
-Install for Claude Code, Codex, or generic Agent Skills harnesses:
-
-```bash
+npx @aholbreich/agent-skills install --target agents
 npx @aholbreich/agent-skills install --target claude
 npx @aholbreich/agent-skills install --target codex
-npx @aholbreich/agent-skills install --target agents
+npx @aholbreich/agent-skills install --target project
 ```
 
 Overwrite existing installed skill directories:
@@ -96,6 +116,18 @@ List bundled skills:
 ```bash
 npx @aholbreich/agent-skills list
 ```
+
+## Collision and update notes
+
+Avoid installing the same skill into multiple locations for the same agent unless you intentionally want one copy to shadow another. Most agents give project-local skills priority over user/global skills.
+
+For example, in Pi a project skill at `.pi/skills/jira-browser-fetch/SKILL.md` shadows the same skill installed from `npm:@aholbreich/agent-skills`. In that case `pi update` updates the package, but the active project-local copy remains unchanged.
+
+Recommended rule of thumb:
+
+- Cross-agent users: prefer `npx skills add aholbreich/agent-skills -g`.
+- Pi-only users: prefer `pi install npm:@aholbreich/agent-skills`.
+- Team/repo-specific overrides: commit project-local skills intentionally and update them intentionally.
 
 ## Manual install
 

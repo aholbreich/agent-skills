@@ -7,6 +7,8 @@ Added:
 - `jira-browser-fetch --backlog URL|BOARD_ID` to fetch all issues from a Jira Software board backlog through the authenticated browser session.
 - Backlog manifests at `raw/jira-board-<board-id>-backlog.json` and a `backlogs` section in `raw/jira-browser-fetch-run.json`.
 - Documentation examples for natural-language user requests that should invoke the skills.
+- Recommended `npx skills add aholbreich/agent-skills -g` cross-agent install path, plus collision/update guidance for Pi and project-local overrides.
+- CI/package dry-run scripts that use `npm pack --dry-run` for compatibility with older local pnpm launchers.
 
 ## 0.1.0 - 2026-05-06
 
