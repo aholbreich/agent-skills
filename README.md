@@ -2,7 +2,7 @@
 
 Handcrafted [Agent Skills](https://agentskills.io/) for developer and LLM-wiki workflows. The package is intentionally a pure skills package with broad compatibility across Pi, Claude Code, Codex, OpenClaw/generic `.agents` setups, and other Agent Skills-compatible harnesses.
 
-This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetchers that work well when Jira/Confluence API-token authentication is unavailable because an organization uses Microsoft/SSO.
+This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetch/update tools that work well when Jira/Confluence API-token authentication is unavailable because an organization uses Microsoft/SSO.
 
 ## Skills
 
@@ -10,6 +10,7 @@ This repository is a pure skills package. It currently contains browser-authenti
 |---|---|
 | [`jira-browser-fetch`](skills/jira-browser-fetch/) | Fetch Jira issue JSON, rendered HTML/XML, linked/referenced issues, Jira Software board backlogs, JQL result sets, and attachments through an authenticated Chrome session. |
 | [`confluence-browser-fetch`](skills/confluence-browser-fetch/) | Fetch Confluence page JSON, storage/view HTML, browser HTML, descendants, CQL result sets, and attachments through an authenticated Chrome session. |
+| [`confluence-update`](skills/confluence-update/) | Dry-run-first Confluence page updates, agent-owned block replacement, Markdown-to-storage conversion, and page creation through an authenticated browser session. |
 
 ## Compatibility
 
@@ -175,6 +176,7 @@ If installed globally via npm, the package exposes:
 agent-skills
 jira-browser-fetch
 confluence-browser-fetch
+confluence-update
 ```
 
 ## Reuse one Atlassian browser login
@@ -187,6 +189,29 @@ export ATLASSIAN_CHROME_DEBUG_PORT=9223
 ```
 
 Skill-specific variables such as `JIRA_CHROME_PROFILE` or `CONFLUENCE_CHROME_PROFILE` still override the shared profile when needed.
+
+## Confluence update examples
+
+Dry-run an agent-owned block replacement from Markdown:
+
+```bash
+confluence-update replace-block 123456 \
+  --site https://example.atlassian.net \
+  --marker agent-summary \
+  --file ./summary.md \
+  --representation markdown
+```
+
+Apply only after reviewing `raw/confluence-updates/...`:
+
+```bash
+confluence-update replace-block 123456 \
+  --site https://example.atlassian.net \
+  --marker agent-summary \
+  --file ./summary.md \
+  --representation markdown \
+  --apply
+```
 
 ## Jira examples
 

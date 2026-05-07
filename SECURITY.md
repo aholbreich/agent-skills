@@ -2,11 +2,11 @@
 
 ## Read this before installing or running
 
-These skills are local automation tools. They can fetch potentially sensitive Jira and Confluence data into your filesystem.
+These skills are local automation tools. They can fetch potentially sensitive Jira and Confluence data into your filesystem, and `confluence-update` can write to Confluence when explicitly run with `--apply`.
 
 ## Browser authentication model
 
-The Jira and Confluence fetchers:
+The Jira and Confluence browser tools:
 
 1. launch or reuse a Chromium-compatible browser with a dedicated local profile,
 2. let you complete normal Atlassian SSO in the browser,
@@ -20,10 +20,11 @@ They do **not** require you to paste API tokens or cookies into chat.
 
 - Do not paste Atlassian cookies, API tokens, passwords, or session headers into prompts, issues, logs, or commits.
 - Treat everything under `raw/` as confidential unless you know it is public.
-- Do not commit fetched Jira/Confluence exports or attachments to a public repository.
+- Do not commit fetched Jira/Confluence exports, update audit files, or attachments to a public repository.
 - Review generated `attachments.json` manifests before sharing; they may contain private URLs and filenames.
 - Chrome remote debugging is configured for `127.0.0.1`; do not expose it to a network interface.
 - Use dedicated browser profiles for fetch automation. If reusing SSO between Jira and Confluence, share only a dedicated automation profile via `ATLASSIAN_CHROME_PROFILE`, not your everyday browser profile.
+- `confluence-update` is dry-run by default; review audit files before re-running with `--apply`.
 - The default attachment download cap is `5mb`; skipped large attachments are still referenced in `attachments.json`.
 
 ## Attachment size limits

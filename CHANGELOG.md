@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- New `confluence-update` skill for dry-run-first Confluence page updates, agent-owned block replacement, simple Markdown-to-storage conversion, and page creation through authenticated browser sessions.
+
 ## 0.6.1 - 2026-05-07
 
 Fixed:

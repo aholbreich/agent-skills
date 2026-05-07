@@ -331,16 +331,20 @@ async function getCookieWithWait(openUrl) {
       const cookie = await getCookieHeader();
       const session = await verifyJiraSession(cookie);
       if (session.ok) {
-        process.stdout.write('\n');
+        if (process.stdout.isTTY) process.stdout.write('\n');
         console.log(`Authenticated Jira session verified via ${session.url}`);
         return cookie;
       }
       last = session.message;
     } catch (e) { last = e.message; }
-    process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
+    if (process.stdout.isTTY) {
+      process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
+    } else if (Date.now() - deadline + opts.waitSec * 1000 < 4000) {
+      console.log(`Waiting up to ${opts.waitSec}s for Jira session...`);
+    }
     await sleep(3000);
   }
-  process.stdout.write('\n');
+  if (process.stdout.isTTY) process.stdout.write('\n');
   throw new Error(`Could not verify authenticated Jira session. Last result: ${last}`);
 }
 
@@ -384,10 +388,12 @@ async function fetchBacklogPageWithWait(url, cookie) {
       if (result.status === 200 && result.json && Array.isArray(result.json.issues)) return result.json;
       last = `HTTP ${result.status} ${(result.text || '').slice(0, 180).replace(/\s+/g, ' ')}`;
     } catch (e) { last = e.message; }
-    process.stdout.write(`\r${new Date().toLocaleTimeString()} waiting for Jira backlog access: ${last.padEnd(120).slice(0, 120)}`);
+    if (process.stdout.isTTY) {
+      process.stdout.write(`\r${new Date().toLocaleTimeString()} waiting for Jira backlog access: ${last.padEnd(120).slice(0, 120)}`);
+    }
     await sleep(3000);
   }
-  process.stdout.write('\n');
+  if (process.stdout.isTTY) process.stdout.write('\n');
   throw new Error(`Could not fetch Jira backlog. Last result: ${last}`);
 }
 

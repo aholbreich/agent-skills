@@ -363,16 +363,20 @@ async function getCookieWithWait(openUrl) {
       const cookie = await getCookieHeader();
       const session = await verifyConfluenceSession(cookie);
       if (session.ok) {
-        process.stdout.write('\n');
+        if (process.stdout.isTTY) process.stdout.write('\n');
         console.log(`Authenticated Confluence session verified via ${session.url}`);
         return cookie;
       }
       last = session.message;
     } catch (e) { last = e.message; }
-    process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
+    if (process.stdout.isTTY) {
+      process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
+    } else if (Date.now() - deadline + opts.waitSec * 1000 < 4000) {
+      console.log(`Waiting up to ${opts.waitSec}s for Confluence session...`);
+    }
     await sleep(3000);
   }
-  process.stdout.write('\n');
+  if (process.stdout.isTTY) process.stdout.write('\n');
   throw new Error(`Could not verify authenticated Confluence session. Last result: ${last}`);
 }
 
