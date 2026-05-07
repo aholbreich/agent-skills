@@ -9,6 +9,7 @@ Added:
 - Documentation examples for natural-language user requests that should invoke the skills.
 - Recommended `npx skills add aholbreich/agent-skills -g` cross-agent install path, plus collision/update guidance for Pi and project-local overrides.
 - CI/package dry-run scripts that use `npm pack --dry-run` for compatibility with older local pnpm launchers.
+- `agent-skills install --skill NAME` and `--pick` to install only selected bundled skills from the fallback npx installer.
 
 ## 0.1.0 - 2026-05-06
 

@@ -105,6 +105,20 @@ npx @aholbreich/agent-skills install --target codex
 npx @aholbreich/agent-skills install --target project
 ```
 
+Install only selected skills:
+
+```bash
+npx @aholbreich/agent-skills install --skill jira-browser-fetch
+npx @aholbreich/agent-skills install --skill confluence-browser-fetch
+npx @aholbreich/agent-skills install --skill jira-browser-fetch --target project
+```
+
+Or use the dependency-free interactive picker:
+
+```bash
+npx @aholbreich/agent-skills install --pick
+```
+
 Overwrite existing installed skill directories:
 
 ```bash

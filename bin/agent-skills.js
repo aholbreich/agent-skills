@@ -5,6 +5,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
+const readline = require('readline/promises');
 
 const packageRoot = path.resolve(__dirname, '..');
 const sourceSkillsDir = path.join(packageRoot, 'skills');
@@ -41,12 +42,16 @@ Commands:
 Options for install:
   --target NAME           pi | agents | claude | codex | openclaw | project | project-agents | project-claude | project-codex (default: agents)
   --dir PATH              Custom skills directory, overrides --target
+  --skill NAME            Install only selected skill(s); repeatable, comma-separated, or '*' for all
+  --pick                  Interactively choose which bundled skills to install
   --force                 Overwrite existing skill directories
   --dry-run               Show what would be copied without writing
 
 Examples:
   npx skills add aholbreich/agent-skills -g
   npx @aholbreich/agent-skills
+  npx @aholbreich/agent-skills install --skill jira-browser-fetch
+  npx @aholbreich/agent-skills install --pick
   npx @aholbreich/agent-skills install --target agents --force
   npx @aholbreich/agent-skills install --target pi --force
   npx @aholbreich/agent-skills install --target project
@@ -80,16 +85,72 @@ async function copyDir(src, dest) {
   await fsp.cp(src, dest, { recursive: true, force: true, errorOnExist: false });
 }
 
+function addSkillFilters(filters, value) {
+  if (!value) throw new Error('--skill requires a skill name');
+  for (const item of String(value).split(',')) {
+    const skill = item.trim();
+    if (skill) filters.push(skill);
+  }
+}
+
+function selectSkills(allSkills, filters) {
+  if (!filters.length || filters.includes('*')) return allSkills;
+  const known = new Set(allSkills);
+  const selected = [...new Set(filters)];
+  const unknown = selected.filter(skill => !known.has(skill));
+  if (unknown.length) {
+    throw new Error(`Unknown skill(s): ${unknown.join(', ')}. Available: ${allSkills.join(', ')}`);
+  }
+  return selected.sort();
+}
+
+function parsePickedSkills(answer, allSkills) {
+  const value = String(answer || '').trim();
+  if (!value || value === '*') return allSkills;
+  const selected = [];
+  for (const raw of value.split(',')) {
+    const token = raw.trim();
+    if (!token) continue;
+    if (/^\d+$/.test(token)) {
+      const index = Number(token) - 1;
+      if (index < 0 || index >= allSkills.length) throw new Error(`Invalid skill number: ${token}`);
+      selected.push(allSkills[index]);
+    } else {
+      selected.push(token);
+    }
+  }
+  return selectSkills(allSkills, selected);
+}
+
+async function pickSkills(allSkills) {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error('--pick requires an interactive terminal; use --skill NAME for non-interactive installs');
+  }
+  console.log('Bundled skills:');
+  allSkills.forEach((skill, index) => console.log(`  ${index + 1}) ${skill}`));
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question('Install which skills? Enter numbers/names separated by commas, or blank for all: ');
+    return parsePickedSkills(answer, allSkills);
+  } finally {
+    rl.close();
+  }
+}
+
 async function install(args) {
   let target = 'agents';
   let customDir = '';
   let force = false;
   let dryRun = false;
+  let pick = false;
+  const skillFilters = [];
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--target') target = args[++i];
     else if (a === '--dir') customDir = args[++i];
+    else if (a === '--skill' || a === '-s') addSkillFilters(skillFilters, args[++i]);
+    else if (a === '--pick') pick = true;
     else if (a === '--force') force = true;
     else if (a === '--dry-run') dryRun = true;
     else if (a === '-h' || a === '--help') { usage(); return; }
@@ -99,11 +160,15 @@ async function install(args) {
   if (!customDir && !TARGETS[target]) {
     throw new Error(`Unknown target '${target}'. Valid targets: ${Object.keys(TARGETS).join(', ')}`);
   }
+  if (pick && skillFilters.length) {
+    throw new Error('Use either --pick or --skill, not both');
+  }
 
   const destRoot = path.resolve(expandHome(customDir || TARGETS[target]));
-  const skills = await listSkills();
+  const allSkills = await listSkills();
+  const skills = pick ? await pickSkills(allSkills) : selectSkills(allSkills, skillFilters);
 
-  console.log(`Installing ${skills.length} skill(s) to ${destRoot}`);
+  console.log(`Installing ${skills.length} of ${allSkills.length} skill(s) to ${destRoot}`);
   if (dryRun) console.log('Dry run: no files will be written.');
 
   if (!dryRun) await fsp.mkdir(destRoot, { recursive: true });

@@ -56,3 +56,21 @@ test('agent-skills install copies skills and skips existing unless forced', () =
   assert.equal(result.status, 0);
   assert.match(result.stdout, /OVERWRITE jira-browser-fetch/);
 });
+
+test('agent-skills install supports selecting one bundled skill', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-skills-test-'));
+  const result = spawnSync(process.execPath, [script, 'install', '--dir', tmp, '--skill', 'jira-browser-fetch'], { encoding: 'utf8' });
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Installing 1 of 2 skill\(s\)/);
+  assert.equal(fs.existsSync(path.join(tmp, 'jira-browser-fetch/SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(tmp, 'confluence-browser-fetch/SKILL.md')), false);
+});
+
+test('agent-skills install rejects unknown selected skills', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-skills-test-'));
+  const result = spawnSync(process.execPath, [script, 'install', '--dir', tmp, '--skill', 'missing-skill'], { encoding: 'utf8' });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unknown skill\(s\): missing-skill/);
+});

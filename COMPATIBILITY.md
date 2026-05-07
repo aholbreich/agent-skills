@@ -79,6 +79,14 @@ npx @aholbreich/agent-skills --target project-agents
 npx @aholbreich/agent-skills install --dir /path/to/skills
 ```
 
+Select one or more skills with `--skill`, or use the interactive picker:
+
+```bash
+npx @aholbreich/agent-skills install --skill jira-browser-fetch
+npx @aholbreich/agent-skills install --skill jira-browser-fetch --skill confluence-browser-fetch
+npx @aholbreich/agent-skills install --pick
+```
+
 This fallback copies files. For symlinked, multi-agent installs, prefer `npx skills add aholbreich/agent-skills`.
 
 ## Collision behavior

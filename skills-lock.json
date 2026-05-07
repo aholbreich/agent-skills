@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "confluence-browser-fetch": {
+      "source": "aholbreich/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/confluence-browser-fetch/SKILL.md",
+      "computedHash": "f23123e760e2a53ea981cf3da77773e8c5846ac1ed07f5d8d5e91920465c97c8"
+    },
+    "jira-browser-fetch": {
+      "source": "aholbreich/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/jira-browser-fetch/SKILL.md",
+      "computedHash": "12a1d3cee794a5ea8f3455543f3ec11105ebb071cc91fc53b6824f40bd7dd608"
+    }
+  }
+}
