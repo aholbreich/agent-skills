@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- New `bitbucket-browser-fetch` skill for browser-authenticated Bitbucket Cloud project repository inventory, SSH/HTTPS clone URL lists, Markdown summaries, and safe clone helper scripts.
+
 ## 0.8.0 - 2026-05-07
 
 Added:

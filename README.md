@@ -2,7 +2,7 @@
 
 Handcrafted [Agent Skills](https://agentskills.io/) for developer and LLM-wiki workflows. The package is intentionally a pure skills package with broad compatibility across Pi, Claude Code, Codex, OpenClaw/generic `.agents` setups, and other Agent Skills-compatible harnesses.
 
-This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetch/update tools that work well when Jira/Confluence API-token authentication is unavailable because an organization uses Microsoft/SSO.
+This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetch/update tools that work well when Jira/Confluence/Bitbucket API-token authentication is unavailable because an organization uses Microsoft/SSO.
 
 ## Skills
 
@@ -11,6 +11,7 @@ This repository is a pure skills package. It currently contains browser-authenti
 | [`jira-browser-fetch`](skills/jira-browser-fetch/) | Fetch Jira issue JSON, rendered HTML/XML, linked/referenced issues, Jira Software board backlogs, JQL result sets, and attachments through an authenticated Chrome session. |
 | [`confluence-browser-fetch`](skills/confluence-browser-fetch/) | Fetch Confluence page JSON, storage/view HTML, browser HTML, descendants, CQL result sets, and attachments through an authenticated Chrome session. |
 | [`confluence-update`](skills/confluence-update/) | Dry-run-first Confluence page updates, agent-owned block replacement, Markdown-to-storage conversion, and page creation through an authenticated browser session. |
+| [`bitbucket-browser-fetch`](skills/bitbucket-browser-fetch/) | Fetch Bitbucket Cloud project repository inventories and clone URL lists through an authenticated browser session. |
 
 ## Compatibility
 
@@ -177,6 +178,7 @@ agent-skills
 jira-browser-fetch
 confluence-browser-fetch
 confluence-update
+bitbucket-browser-fetch
 ```
 
 ## Reuse one Atlassian browser login
@@ -188,7 +190,17 @@ export ATLASSIAN_CHROME_PROFILE="$HOME/.local/share/atlassian-browser-fetch-chro
 export ATLASSIAN_CHROME_DEBUG_PORT=9223
 ```
 
-Skill-specific variables such as `JIRA_CHROME_PROFILE` or `CONFLUENCE_CHROME_PROFILE` still override the shared profile when needed.
+Skill-specific variables such as `JIRA_CHROME_PROFILE`, `CONFLUENCE_CHROME_PROFILE`, or `BITBUCKET_CHROME_PROFILE` still override the shared profile when needed.
+
+## Bitbucket examples
+
+Fetch all repositories in a Bitbucket project and write SSH clone URL lists:
+
+```bash
+bitbucket-browser-fetch \
+  'https://bitbucket.org/myneva/workspace/projects/SWI' \
+  --raw-dir ./raw
+```
 
 ## Confluence update examples
 

@@ -22,6 +22,7 @@ test('agent-skills list prints bundled skills', () => {
   assert.match(result.stdout, /jira-browser-fetch/);
   assert.match(result.stdout, /confluence-browser-fetch/);
   assert.match(result.stdout, /confluence-update/);
+  assert.match(result.stdout, /bitbucket-browser-fetch/);
 });
 
 test('agent-skills dry-run install reports target without writing', () => {
@@ -48,6 +49,7 @@ test('agent-skills install copies skills and skips existing unless forced', () =
   assert.equal(result.status, 0);
   assert.equal(fs.existsSync(path.join(tmp, 'jira-browser-fetch/SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(tmp, 'confluence-browser-fetch/SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(tmp, 'bitbucket-browser-fetch/SKILL.md')), true);
 
   result = spawnSync(process.execPath, [script, 'install', '--dir', tmp], { encoding: 'utf8' });
   assert.equal(result.status, 0);
@@ -63,7 +65,7 @@ test('agent-skills install supports selecting one bundled skill', () => {
   const result = spawnSync(process.execPath, [script, 'install', '--dir', tmp, '--skill', 'jira-browser-fetch'], { encoding: 'utf8' });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /Installing 1 of 3 skill\(s\)/);
+  assert.match(result.stdout, /Installing 1 of 4 skill\(s\)/);
   assert.equal(fs.existsSync(path.join(tmp, 'jira-browser-fetch/SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(tmp, 'confluence-browser-fetch/SKILL.md')), false);
 });
