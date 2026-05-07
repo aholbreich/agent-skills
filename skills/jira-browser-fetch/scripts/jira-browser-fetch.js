@@ -143,6 +143,15 @@ async function openDevtoolsTab(url) {
   return false;
 }
 
+async function hasDevtoolsTabForHost(url) {
+  if (!url) return false;
+  const host = new URL(url).host;
+  const list = await endpoint('/json/list');
+  return list.some(t => t.type === 'page' && t.url && (() => {
+    try { return new URL(t.url).host === host; } catch { return false; }
+  })());
+}
+
 function isExecutable(file) {
   try { fs.accessSync(file, fs.constants.X_OK); return true; } catch { return false; }
 }
@@ -520,9 +529,14 @@ async function ensureBrowser(browseUrl) {
   } else {
     console.log(`Reusing Chrome DevTools on port ${opts.port}`);
     if (browseUrl) {
-      const opened = await openDevtoolsTab(browseUrl);
-      if (opened) console.log(`Opened target URL in reused browser: ${browseUrl}`);
-      else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
+      const hasTab = await hasDevtoolsTabForHost(browseUrl);
+      if (hasTab) {
+        console.log(`Found existing Jira/Atlassian tab for ${new URL(browseUrl).host}; not opening another tab.`);
+      } else {
+        const opened = await openDevtoolsTab(browseUrl);
+        if (opened) console.log(`Opened target URL in reused browser: ${browseUrl}`);
+        else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
+      }
     }
   }
   await waitDevtools();

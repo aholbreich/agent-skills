@@ -131,6 +131,18 @@ async function openDevtoolsTab(url) {
   return false;
 }
 
+async function hasDevtoolsTabForWiki(url) {
+  if (!url) return false;
+  const host = new URL(url).host;
+  const list = await endpoint('/json/list');
+  return list.some(t => t.type === 'page' && t.url && (() => {
+    try {
+      const tabUrl = new URL(t.url);
+      return tabUrl.host === host && tabUrl.pathname.startsWith('/wiki');
+    } catch { return false; }
+  })());
+}
+
 function isExecutable(file) {
   try { fs.accessSync(file, fs.constants.X_OK); return true; } catch { return false; }
 }
@@ -198,9 +210,14 @@ async function ensureBrowser(openUrl) {
     console.log(`Reusing Chrome DevTools on port ${opts.port}`);
     const targetUrl = openUrl || wikiBase;
     if (targetUrl) {
-      const opened = await openDevtoolsTab(targetUrl);
-      if (opened) console.log(`Opened target URL in reused browser: ${targetUrl}`);
-      else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
+      const hasTab = await hasDevtoolsTabForWiki(targetUrl);
+      if (hasTab) {
+        console.log(`Found existing Confluence tab for ${new URL(targetUrl).host}; not opening another tab.`);
+      } else {
+        const opened = await openDevtoolsTab(targetUrl);
+        if (opened) console.log(`Opened target URL in reused browser: ${targetUrl}`);
+        else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
+      }
     }
   }
   await waitDevtools();

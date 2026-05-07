@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 - 2026-05-07
+
+Fixed:
+
+- Browser fetchers no longer open duplicate target tabs when reusing DevTools during bulk Jira/Confluence runs.
+
 ## 0.6.0 - 2026-05-07
 
 Added:
