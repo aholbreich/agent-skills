@@ -30,3 +30,7 @@ jira-browser-fetch-chrome/
 
 # Logs
 *.log
+
+# Local Skills CLI installs
+.agents/
+skills-lock.json
