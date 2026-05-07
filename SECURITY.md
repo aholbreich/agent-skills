@@ -23,7 +23,7 @@ They do **not** require you to paste API tokens or cookies into chat.
 - Do not commit fetched Jira/Confluence exports or attachments to a public repository.
 - Review generated `attachments.json` manifests before sharing; they may contain private URLs and filenames.
 - Chrome remote debugging is configured for `127.0.0.1`; do not expose it to a network interface.
-- Use dedicated browser profiles for fetch automation.
+- Use dedicated browser profiles for fetch automation. If reusing SSO between Jira and Confluence, share only a dedicated automation profile via `ATLASSIAN_CHROME_PROFILE`, not your everyday browser profile.
 - The default attachment download cap is `5mb`; skipped large attachments are still referenced in `attachments.json`.
 
 ## Attachment size limits

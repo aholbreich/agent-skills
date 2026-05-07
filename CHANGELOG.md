@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- Shared `ATLASSIAN_CHROME_PROFILE` and `ATLASSIAN_CHROME_DEBUG_PORT` support so Jira and Confluence fetchers can reuse one dedicated Atlassian SSO browser session.
+- Browser fetchers now open the requested target URL in a new tab when reusing an existing DevTools browser.
+
 ## 0.5.0 - 2026-05-07
 
 Added:

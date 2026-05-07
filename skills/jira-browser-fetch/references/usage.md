@@ -121,12 +121,23 @@ Default max attachment download size is `5mb`. Use `--max-attachment-size unlimi
 |---|---|
 | `JIRA_SERVER` | Default Jira base URL |
 | `JIRA_RAW_DIR` | Default output raw directory |
-| `JIRA_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9223` |
+| `JIRA_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9223`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
+| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for Jira and Confluence browser fetchers |
 | `JIRA_FETCH_WAIT_SEC` | Wait timeout per issue, default `900` |
 | `JIRA_MAX_SEARCH_RESULTS` | Max issues added per JQL or backlog search, default `1000` |
 | `JIRA_MAX_ATTACHMENT_SIZE` / `JIRA_MAX_ATTACHMENT_BYTES` | Max attachment download size, default `5mb`; skipped files are listed in `attachments.json` |
-| `JIRA_CHROME_PROFILE` | Dedicated Chrome profile dir |
+| `JIRA_CHROME_PROFILE` | Dedicated Chrome profile dir; overrides `ATLASSIAN_CHROME_PROFILE` |
+| `ATLASSIAN_CHROME_PROFILE` | Shared browser profile dir for Jira and Confluence browser fetchers |
 | `CHROME` / `CHROMIUM` | Browser executable path override |
+
+To reuse one Atlassian SSO login across Jira and Confluence fetches, set a shared profile and port for both tools:
+
+```bash
+export ATLASSIAN_CHROME_PROFILE="$HOME/.local/share/atlassian-browser-fetch-chrome"
+export ATLASSIAN_CHROME_DEBUG_PORT=9223
+```
+
+When reusing an existing DevTools browser on the configured port, the script opens the requested Jira URL in a new tab before verifying the REST session.
 
 ## Example user requests
 

@@ -106,15 +106,26 @@ By default, pages with matching local `metadata.json` Confluence `version.number
 |---|---|
 | `CONFLUENCE_SITE` | Default Atlassian site, e.g. `https://example.atlassian.net` |
 | `CONFLUENCE_RAW_DIR` | Default output raw directory |
-| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9224` |
+| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9224`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
+| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for Jira and Confluence browser fetchers. If only `ATLASSIAN_CHROME_PROFILE` is set, Confluence defaults to shared port `9223`. |
 | `CONFLUENCE_FETCH_WAIT_SEC` | Wait timeout, default `900` |
 | `CONFLUENCE_MAX_SEARCH_RESULTS` | Max CQL pages, default `200` |
 | `CONFLUENCE_MAX_ATTACHMENT_SIZE` / `CONFLUENCE_MAX_ATTACHMENT_BYTES` | Max attachment download size, default `5mb`; skipped files are listed in `attachments.json` |
 | `CONFLUENCE_RETRIES` | Retry count for transient HTTP errors, default `3` |
 | `CONFLUENCE_REQUEST_TIMEOUT_SEC` | Per-request timeout, default `60` |
 | `CONFLUENCE_SKIP_UNCHANGED` | Set to `0` to disable default skip-unchanged behavior |
-| `CONFLUENCE_CHROME_PROFILE` | Dedicated Chrome profile dir |
+| `CONFLUENCE_CHROME_PROFILE` | Dedicated Chrome profile dir; overrides `ATLASSIAN_CHROME_PROFILE` |
+| `ATLASSIAN_CHROME_PROFILE` | Shared browser profile dir for Jira and Confluence browser fetchers |
 | `CHROME` / `CHROMIUM` | Browser executable path override |
+
+To reuse one Atlassian SSO login across Jira and Confluence fetches, set a shared profile and port for both tools:
+
+```bash
+export ATLASSIAN_CHROME_PROFILE="$HOME/.local/share/atlassian-browser-fetch-chrome"
+export ATLASSIAN_CHROME_DEBUG_PORT=9223
+```
+
+When reusing an existing DevTools browser on the configured port, the script opens the requested Confluence URL in a new tab before verifying the REST session.
 
 ## Output Files
 

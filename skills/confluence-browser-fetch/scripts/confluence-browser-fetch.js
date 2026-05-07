@@ -30,8 +30,8 @@ Options:
   --retries N              HTTP retry count for transient failures (default: 3)
   --request-timeout SEC    Per-request timeout (default: 60)
   --wait SEC               Wait time for SSO/session (default: 900)
-  --port PORT              Chrome DevTools port (default: 9224)
-  --profile-dir DIR        Chrome profile dir (default: ~/.local/share/confluence-browser-fetch-chrome)
+  --port PORT              Chrome DevTools port (default: CONFLUENCE_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9224)
+  --profile-dir DIR        Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/confluence-browser-fetch-chrome)
   --help                   Show this help
 
 Examples:
@@ -46,9 +46,9 @@ Examples:
 const opts = {
   site: process.env.CONFLUENCE_SITE || '',
   rawDir: process.env.CONFLUENCE_RAW_DIR || path.resolve(process.cwd(), 'raw'),
-  port: Number(process.env.CONFLUENCE_CHROME_DEBUG_PORT || 9224),
+  port: Number(process.env.CONFLUENCE_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || (process.env.ATLASSIAN_CHROME_PROFILE ? 9223 : 9224)),
   waitSec: Number(process.env.CONFLUENCE_FETCH_WAIT_SEC || 900),
-  profileDir: process.env.CONFLUENCE_CHROME_PROFILE || path.join(os.homedir(), '.local/share/confluence-browser-fetch-chrome'),
+  profileDir: process.env.CONFLUENCE_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/confluence-browser-fetch-chrome'),
   maxSearchResults: Number(process.env.CONFLUENCE_MAX_SEARCH_RESULTS || 200),
   retries: Number(process.env.CONFLUENCE_RETRIES || 3),
   requestTimeoutSec: Number(process.env.CONFLUENCE_REQUEST_TIMEOUT_SEC || 60),
@@ -116,6 +116,21 @@ async function waitDevtools() {
   throw new Error('Chrome DevTools endpoint did not start');
 }
 
+async function openDevtoolsTab(url) {
+  if (!url) return false;
+  const endpointUrl = `http://127.0.0.1:${opts.port}/json/new?${encodeURIComponent(url)}`;
+  for (const init of [{ method: 'PUT' }, {}]) {
+    try {
+      const res = await fetch(endpointUrl, init);
+      if (res.ok) {
+        await sleep(500);
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
 function isExecutable(file) {
   try { fs.accessSync(file, fs.constants.X_OK); return true; } catch { return false; }
 }
@@ -181,6 +196,12 @@ async function ensureBrowser(openUrl) {
     launchChrome(openUrl || wikiBase);
   } else {
     console.log(`Reusing Chrome DevTools on port ${opts.port}`);
+    const targetUrl = openUrl || wikiBase;
+    if (targetUrl) {
+      const opened = await openDevtoolsTab(targetUrl);
+      if (opened) console.log(`Opened target URL in reused browser: ${targetUrl}`);
+      else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
+    }
   }
   await waitDevtools();
 }

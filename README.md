@@ -177,6 +177,17 @@ jira-browser-fetch
 confluence-browser-fetch
 ```
 
+## Reuse one Atlassian browser login
+
+To avoid separate Jira and Confluence SSO prompts, use one shared automation profile and DevTools port for both fetchers:
+
+```bash
+export ATLASSIAN_CHROME_PROFILE="$HOME/.local/share/atlassian-browser-fetch-chrome"
+export ATLASSIAN_CHROME_DEBUG_PORT=9223
+```
+
+Skill-specific variables such as `JIRA_CHROME_PROFILE` or `CONFLUENCE_CHROME_PROFILE` still override the shared profile when needed.
+
 ## Jira examples
 
 Fetch one issue:

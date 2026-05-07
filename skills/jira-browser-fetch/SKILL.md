@@ -55,7 +55,8 @@ Use this skill for user requests like:
 1. Identify raw directory.
 2. Run the script and show the command first.
 3. If Chrome opens, ask the user to complete SSO in that browser window.
-4. Verify saved files.
+4. To share one Atlassian SSO login with `confluence-browser-fetch`, use `ATLASSIAN_CHROME_PROFILE` plus `ATLASSIAN_CHROME_DEBUG_PORT` (or matching `--profile-dir` and `--port`) for both tools.
+5. Verify saved files.
 
 Example:
 

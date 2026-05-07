@@ -35,8 +35,8 @@ Options:
   --max-attachment-size S  Skip attachment downloads larger than S (default: 5mb; use unlimited to disable)
   --prefix A,B,C           Only fetch referenced keys with these project prefixes
   --wait SEC               Wait time for SSO/session per issue (default: 900)
-  --port PORT              Chrome DevTools port (default: 9223)
-  --profile-dir DIR        Chrome profile dir (default: ~/.local/share/jira-browser-fetch-chrome)
+  --port PORT              Chrome DevTools port (default: JIRA_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9223)
+  --profile-dir DIR        Chrome profile dir (default: JIRA_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/jira-browser-fetch-chrome)
   --no-attachments         Do not download Jira attachments
   --no-html                Do not save browser HTML
   --no-xml                 Do not save Jira XML issue view
@@ -54,9 +54,9 @@ Examples:
 const opts = {
   server: process.env.JIRA_SERVER || '',
   rawDir: process.env.JIRA_RAW_DIR || path.resolve(process.cwd(), 'raw'),
-  port: Number(process.env.JIRA_CHROME_DEBUG_PORT || 9223),
+  port: Number(process.env.JIRA_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9223),
   waitSec: Number(process.env.JIRA_FETCH_WAIT_SEC || 900),
-  profileDir: process.env.JIRA_CHROME_PROFILE || path.join(os.homedir(), '.local/share/jira-browser-fetch-chrome'),
+  profileDir: process.env.JIRA_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/jira-browser-fetch-chrome'),
   connected: false,
   depth: undefined,
   scanText: false,
@@ -126,6 +126,21 @@ async function waitDevtools() {
     await sleep(250);
   }
   throw new Error('Chrome DevTools endpoint did not start');
+}
+
+async function openDevtoolsTab(url) {
+  if (!url) return false;
+  const endpointUrl = `http://127.0.0.1:${opts.port}/json/new?${encodeURIComponent(url)}`;
+  for (const init of [{ method: 'PUT' }, {}]) {
+    try {
+      const res = await fetch(endpointUrl, init);
+      if (res.ok) {
+        await sleep(500);
+        return true;
+      }
+    } catch {}
+  }
+  return false;
 }
 
 function isExecutable(file) {
@@ -504,6 +519,11 @@ async function ensureBrowser(browseUrl) {
     launchChrome(browseUrl);
   } else {
     console.log(`Reusing Chrome DevTools on port ${opts.port}`);
+    if (browseUrl) {
+      const opened = await openDevtoolsTab(browseUrl);
+      if (opened) console.log(`Opened target URL in reused browser: ${browseUrl}`);
+      else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
+    }
   }
   await waitDevtools();
 }
