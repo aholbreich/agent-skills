@@ -9,7 +9,7 @@ compatibility: Agent Skills standard. Tested with Pi; installable into Claude Co
 
 Use this skill when Jira API-token authentication fails or the organization uses Microsoft/SSO and the user wants Jira issues, Jira Software board backlogs, or JQL result sets archived into a local raw/wiki folder.
 
-The bundled script opens/reuses Chrome with a dedicated profile, lets the user complete SSO once, extracts Jira cookies via Chrome DevTools, and fetches Jira REST/HTML/XML/attachments into a raw directory.
+The bundled script opens/reuses Chrome with a dedicated profile, lets the user complete SSO once, extracts Jira cookies via Chrome DevTools, verifies they represent an authenticated Jira REST session, and fetches Jira REST/HTML/XML/attachments into a raw directory.
 
 ## Safety
 

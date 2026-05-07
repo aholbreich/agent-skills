@@ -11,7 +11,8 @@ The Jira and Confluence fetchers:
 1. launch or reuse Chrome/Chromium with a dedicated local profile,
 2. let you complete normal Atlassian SSO in the browser,
 3. read Atlassian cookies through the local Chrome DevTools protocol,
-4. call Atlassian REST endpoints with those cookies.
+4. verify those cookies represent an authenticated Jira/Confluence REST session,
+5. call Atlassian REST endpoints with those cookies.
 
 They do **not** require you to paste API tokens or cookies into chat.
 

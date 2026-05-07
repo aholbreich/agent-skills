@@ -223,21 +223,57 @@ async function fetchJson(url, cookie, accept) {
   return { ...result, json };
 }
 
+async function verifyJiraSession(cookie) {
+  if (!cookie) return { ok: false, message: 'no Atlassian cookies yet' };
+
+  const probes = [
+    `${opts.server}/rest/api/3/myself`,
+    `${opts.server}/rest/api/2/myself`,
+  ];
+
+  for (const url of probes) {
+    const result = await fetchJson(url, cookie, 'application/json');
+    if (result.status === 200 && result.json && (result.json.accountId || result.json.name || result.json.key || result.json.displayName)) {
+      return { ok: true, url };
+    }
+    if (result.status === 200) {
+      const kind = result.json ? 'unexpected JSON response' : (/html/i.test(result.contentType) ? 'login page' : 'non-JSON response');
+      return { ok: false, message: `not authenticated yet (${kind} from ${url})` };
+    }
+    if (result.status === 401 || result.status === 403) {
+      return { ok: false, message: `not authenticated yet (${result.status} from ${url})` };
+    }
+    if (result.status === 302 || result.status === 303) {
+      return { ok: false, message: `still redirected to login (${result.status} from ${url})` };
+    }
+    if (result.status === 404) continue;
+    return { ok: false, message: `session probe HTTP ${result.status} from ${url}` };
+  }
+
+  return { ok: false, message: 'could not verify Jira session' };
+}
+
 async function getCookieWithWait(openUrl) {
   await ensureBrowser(openUrl || `${opts.server}/`);
+  console.log(`If prompted in Chrome, complete SSO for: ${openUrl || opts.server}`);
   const deadline = Date.now() + opts.waitSec * 1000;
   let last = '';
   while (Date.now() < deadline) {
     try {
       const cookie = await getCookieHeader();
-      if (cookie) return cookie;
-      last = 'no Jira cookies yet';
+      const session = await verifyJiraSession(cookie);
+      if (session.ok) {
+        process.stdout.write('\n');
+        console.log(`Authenticated Jira session verified via ${session.url}`);
+        return cookie;
+      }
+      last = session.message;
     } catch (e) { last = e.message; }
     process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
     await sleep(3000);
   }
   process.stdout.write('\n');
-  throw new Error(`Could not get Jira browser cookies. Last result: ${last}`);
+  throw new Error(`Could not verify authenticated Jira session. Last result: ${last}`);
 }
 
 async function searchJql(jql) {
@@ -271,21 +307,16 @@ async function searchJql(jql) {
   return [...new Set(found)];
 }
 
-async function fetchBacklogPageWithWait(url) {
+async function fetchBacklogPageWithWait(url, cookie) {
   const deadline = Date.now() + opts.waitSec * 1000;
   let last = '';
   while (Date.now() < deadline) {
     try {
-      const cookie = await getCookieHeader();
-      if (!cookie) {
-        last = 'no Jira cookies yet';
-      } else {
-        const result = await fetchJson(url, cookie, 'application/json');
-        if (result.status === 200 && result.json && Array.isArray(result.json.issues)) return result.json;
-        last = `HTTP ${result.status} ${(result.text || '').slice(0, 180).replace(/\s+/g, ' ')}`;
-      }
+      const result = await fetchJson(url, cookie, 'application/json');
+      if (result.status === 200 && result.json && Array.isArray(result.json.issues)) return result.json;
+      last = `HTTP ${result.status} ${(result.text || '').slice(0, 180).replace(/\s+/g, ' ')}`;
     } catch (e) { last = e.message; }
-    process.stdout.write(`\r${new Date().toLocaleTimeString()} waiting for authenticated Jira backlog session: ${last.padEnd(120).slice(0, 120)}`);
+    process.stdout.write(`\r${new Date().toLocaleTimeString()} waiting for Jira backlog access: ${last.padEnd(120).slice(0, 120)}`);
     await sleep(3000);
   }
   process.stdout.write('\n');
@@ -294,8 +325,7 @@ async function fetchBacklogPageWithWait(url) {
 
 async function searchBacklog(input) {
   const backlog = parseBacklogInput(input, opts.server);
-  await ensureBrowser(backlog.browseUrl);
-  console.log(`If prompted in Chrome, complete SSO for: ${backlog.browseUrl}`);
+  const cookie = await getCookieWithWait(backlog.browseUrl);
   console.log(`Waiting up to ${opts.waitSec}s for Jira backlog access...`);
 
   const found = [];
@@ -305,7 +335,7 @@ async function searchBacklog(input) {
   while (found.length < opts.maxSearchResults) {
     const limit = Math.min(pageSize, opts.maxSearchResults - found.length);
     const url = backlogApiUrl(opts.server, backlog.boardId, startAt, limit);
-    const page = await fetchBacklogPageWithWait(url);
+    const page = await fetchBacklogPageWithWait(url, cookie);
     const keys = issueKeysFromAgilePage(page);
     for (const key of keys) found.push(key);
     console.log(`Fetched backlog page board=${backlog.boardId} startAt=${startAt}, issues=${keys.length}${typeof page.total === 'number' ? `, total=${page.total}` : ''}`);
@@ -443,32 +473,11 @@ async function fetchIssue(issue) {
   const remoteLinksUrl = `${opts.server}/rest/api/3/issue/${issue}/remotelink`;
   const xmlUrl = `${opts.server}/si/jira.issueviews:issue-xml/${issue}/${issue}.xml`;
 
-  await ensureBrowser(browseUrl);
-  console.log(`If prompted in Chrome, complete SSO for: ${browseUrl}`);
-  console.log(`Waiting up to ${opts.waitSec}s for Jira session...`);
+  const cookie = await getCookieWithWait(browseUrl);
 
-  const deadline = Date.now() + opts.waitSec * 1000;
-  let last = '';
-  let cookie = '';
-  let rest = null;
-
-  while (Date.now() < deadline) {
-    try {
-      cookie = await getCookieHeader();
-      if (cookie) {
-        rest = await fetchText(restUrl, cookie, 'application/json');
-        const body = rest.text || '';
-        if (rest.status === 200 && body.includes(`"key":"${issue}"`)) break;
-        last = `HTTP ${rest.status} ${body.slice(0, 110).replace(/\s+/g, ' ')}`;
-      } else last = 'no Jira cookies yet';
-    } catch (e) { last = e.message; }
-    process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
-    await sleep(3000);
-  }
-  process.stdout.write('\n');
-
-  if (!rest || rest.status !== 200 || !rest.text.includes(`"key":"${issue}"`)) {
-    throw new Error(`Could not fetch ${issue}. Last result: ${last}`);
+  const rest = await fetchJson(restUrl, cookie, 'application/json');
+  if (rest.status !== 200 || !rest.json || rest.json.key !== issue) {
+    throw new Error(`Could not fetch ${issue}. HTTP ${rest.status}: ${(rest.text || '').slice(0, 300).replace(/\s+/g, ' ')}`);
   }
 
   await fsp.writeFile(path.join(outDir, 'issue.json'), rest.text);

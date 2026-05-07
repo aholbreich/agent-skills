@@ -7,7 +7,8 @@ Some Jira Cloud organizations use Microsoft/SSO and block or break API-token Bas
 1. Launching Chrome with a dedicated user profile.
 2. Letting the user complete normal SSO in Chrome.
 3. Reading Jira cookies through the local Chrome DevTools protocol.
-4. Calling Jira REST endpoints with those cookies.
+4. Verifying those cookies represent an authenticated Jira REST session.
+5. Calling Jira REST endpoints with those cookies.
 
 No token or cookie needs to be pasted into chat.
 
@@ -139,9 +140,13 @@ Agents should invoke this skill for requests such as:
 
 ## Troubleshooting
 
-### `no Jira cookies yet`
+### `no Atlassian cookies yet` / `not authenticated yet`
 
-Complete SSO in the Chrome window opened by the script.
+Complete SSO in the Chrome window opened by the script. Login-page cookies are not enough; the script waits until a Jira REST session probe succeeds.
+
+### `Could not verify authenticated Jira session`
+
+The browser did not reach an authenticated Jira REST session before `--wait` expired. Complete SSO, confirm you can open the target Jira site in that browser profile, then rerun or increase `--wait`.
 
 ### `HTTP 404 Issue does not exist or you do not have permission`
 
