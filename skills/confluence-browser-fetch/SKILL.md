@@ -9,7 +9,7 @@ compatibility: Agent Skills standard. Tested with Pi; installable into Claude Co
 
 Use this skill when a user wants Confluence pages ingested into an LLM wiki `raw/` folder and normal Atlassian API-token auth is unavailable or inconvenient due to SSO.
 
-The script opens/reuses Chrome with a dedicated profile, lets the user complete SSO once, extracts Atlassian cookies via Chrome DevTools, and fetches Confluence REST data plus rendered page HTML and attachments.
+The script opens/reuses Chrome with a dedicated profile, lets the user complete SSO once, extracts Atlassian cookies via Chrome DevTools, verifies they represent an authenticated Confluence REST session, and fetches Confluence REST data plus rendered page HTML and attachments.
 
 ## Safety
 

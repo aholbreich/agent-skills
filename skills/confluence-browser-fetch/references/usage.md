@@ -7,7 +7,8 @@ Confluence Cloud pages are often behind Microsoft/SSO. API-token Basic auth may 
 1. Launching Chrome with a dedicated user profile.
 2. Letting the user complete normal SSO.
 3. Reading Atlassian cookies through local Chrome DevTools.
-4. Calling Confluence REST endpoints with those cookies.
+4. Verifying those cookies represent an authenticated Confluence REST session.
+5. Calling Confluence REST endpoints with those cookies.
 
 No cookie or API token needs to be pasted into chat.
 
@@ -129,13 +130,17 @@ For each page:
 
 ## Troubleshooting
 
-### `no Atlassian cookies yet`
+### `no Atlassian cookies yet` / `not authenticated yet`
 
-Complete SSO in the Chrome window opened by the script.
+Complete SSO in the Chrome window opened by the script. Login-page cookies are not enough; the script waits until a Confluence REST session probe succeeds.
+
+### `Could not verify authenticated Confluence session`
+
+The browser did not reach an authenticated Confluence REST session before `--wait` expired. Complete SSO, confirm you can open the target Confluence site in that browser profile, then rerun or increase `--wait`.
 
 ### `Page failed HTTP 404`
 
-The authenticated user cannot see the page, or the page ID/site is wrong.
+After authentication is verified, this usually means the authenticated user cannot see the page, or the page ID/site is wrong.
 
 ### URL cannot be resolved
 

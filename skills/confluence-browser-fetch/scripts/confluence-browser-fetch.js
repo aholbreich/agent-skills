@@ -246,6 +246,30 @@ async function fetchJson(url, cookie) {
   return { ...result, json };
 }
 
+async function verifyConfluenceSession(cookie) {
+  if (!cookie) return { ok: false, message: 'no Atlassian cookies yet' };
+
+  const probes = [
+    `${wikiBase}/rest/api/user/current`,
+    `${wikiBase}/rest/api/space?limit=1`,
+  ];
+
+  for (const url of probes) {
+    const result = await fetchJson(url, cookie);
+    if (result.status === 200 && result.json) return { ok: true, url };
+    if (result.status === 401 || result.status === 403) {
+      return { ok: false, message: `not authenticated yet (${result.status} from ${url})` };
+    }
+    if (result.status === 302 || result.status === 303) {
+      return { ok: false, message: `still redirected to login (${result.status} from ${url})` };
+    }
+    if (result.status === 404) continue;
+    return { ok: false, message: `session probe HTTP ${result.status} from ${url}` };
+  }
+
+  return { ok: false, message: 'could not verify Confluence session' };
+}
+
 async function getCookieWithWait(openUrl) {
   await ensureBrowser(openUrl || wikiBase);
   console.log(`If prompted in Chrome, complete SSO for: ${openUrl || wikiBase}`);
@@ -254,14 +278,19 @@ async function getCookieWithWait(openUrl) {
   while (Date.now() < deadline) {
     try {
       const cookie = await getCookieHeader();
-      if (cookie) return cookie;
-      last = 'no Atlassian cookies yet';
+      const session = await verifyConfluenceSession(cookie);
+      if (session.ok) {
+        process.stdout.write('\n');
+        console.log(`Authenticated Confluence session verified via ${session.url}`);
+        return cookie;
+      }
+      last = session.message;
     } catch (e) { last = e.message; }
     process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
     await sleep(3000);
   }
   process.stdout.write('\n');
-  throw new Error(`Could not get browser cookies. Last result: ${last}`);
+  throw new Error(`Could not verify authenticated Confluence session. Last result: ${last}`);
 }
 
 function cqlQuote(s) {
