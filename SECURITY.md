@@ -8,7 +8,7 @@ These skills are local automation tools. They can fetch potentially sensitive Ji
 
 The Jira and Confluence fetchers:
 
-1. launch or reuse Chrome/Chromium with a dedicated local profile,
+1. launch or reuse a Chromium-compatible browser with a dedicated local profile,
 2. let you complete normal Atlassian SSO in the browser,
 3. read Atlassian cookies through the local Chrome DevTools protocol,
 4. verify those cookies represent an authenticated Jira/Confluence REST session,

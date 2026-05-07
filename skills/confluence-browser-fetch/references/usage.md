@@ -15,17 +15,17 @@ No cookie or API token needs to be pasted into chat.
 ## Requirements
 
 - Node.js 22+.
-- Google Chrome or Chromium.
+- A Chromium-compatible browser: Chrome, Chromium, Brave, Edge, or Vivaldi.
 - Access to the Confluence page with the logged-in account.
 
 Check:
 
 ```bash
 node --version
-which google-chrome || which chromium || which chromium-browser
+which google-chrome || which chromium || which chromium-browser || which brave-browser || which microsoft-edge
 ```
 
-If Chrome has a different path:
+The script auto-detects common Chromium-compatible browsers. If yours has a different path:
 
 ```bash
 CHROME=/path/to/chrome scripts/confluence-browser-fetch.js 123456
@@ -114,7 +114,7 @@ By default, pages with matching local `metadata.json` Confluence `version.number
 | `CONFLUENCE_REQUEST_TIMEOUT_SEC` | Per-request timeout, default `60` |
 | `CONFLUENCE_SKIP_UNCHANGED` | Set to `0` to disable default skip-unchanged behavior |
 | `CONFLUENCE_CHROME_PROFILE` | Dedicated Chrome profile dir |
-| `CHROME` | Chrome executable path |
+| `CHROME` / `CHROMIUM` | Browser executable path override |
 
 ## Output Files
 

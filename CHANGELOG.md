@@ -12,6 +12,7 @@ Added:
 - Recommended `npx skills add aholbreich/agent-skills -g` cross-agent install path, plus collision/update guidance for Pi and project-local overrides.
 - CI/package dry-run scripts that use `npm pack --dry-run` for compatibility with older local pnpm launchers.
 - `agent-skills install --skill NAME` and `--pick` to install only selected bundled skills from the fallback npx installer.
+- Browser fetchers now auto-detect common Chromium-compatible browsers (Chrome, Chromium, Brave, Edge, Vivaldi) instead of only trying `/usr/bin/google-chrome` unless `CHROME` is set.
 
 ## 0.1.0 - 2026-05-06
 

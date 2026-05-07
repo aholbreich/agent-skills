@@ -29,7 +29,7 @@ See [`COMPATIBILITY.md`](COMPATIBILITY.md) for details, including collision beha
 ## Requirements
 
 - Node.js `>=22`.
-- Google Chrome or Chromium.
+- A Chromium-compatible browser: Chrome, Chromium, Brave, Edge, or Vivaldi.
 - Access to the Jira/Confluence site in the browser account you use.
 - Pi, or any Agent Skills-compatible harness, if you want skill discovery.
 

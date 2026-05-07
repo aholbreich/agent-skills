@@ -14,7 +14,7 @@ No token or cookie needs to be pasted into chat.
 
 ## Requirements
 
-- Linux/macOS with Chrome or Chromium.
+- Linux/macOS with a Chromium-compatible browser: Chrome, Chromium, Brave, Edge, or Vivaldi.
 - Node.js 22+.
 - Network access to the Jira site.
 
@@ -22,10 +22,10 @@ Check:
 
 ```bash
 node --version
-which google-chrome || which chromium || which chromium-browser
+which google-chrome || which chromium || which chromium-browser || which brave-browser || which microsoft-edge
 ```
 
-If Chrome has a different path:
+The script auto-detects common Chromium-compatible browsers. If yours has a different path:
 
 ```bash
 CHROME=/path/to/chrome scripts/jira-browser-fetch.js PROJ-123
@@ -126,7 +126,7 @@ Default max attachment download size is `5mb`. Use `--max-attachment-size unlimi
 | `JIRA_MAX_SEARCH_RESULTS` | Max issues added per JQL or backlog search, default `1000` |
 | `JIRA_MAX_ATTACHMENT_SIZE` / `JIRA_MAX_ATTACHMENT_BYTES` | Max attachment download size, default `5mb`; skipped files are listed in `attachments.json` |
 | `JIRA_CHROME_PROFILE` | Dedicated Chrome profile dir |
-| `CHROME` | Chrome executable path |
+| `CHROME` / `CHROMIUM` | Browser executable path override |
 
 ## Example user requests
 
@@ -152,9 +152,9 @@ The browser did not reach an authenticated Jira REST session before `--wait` exp
 
 The session works, but the account cannot see the issue or the key is not a Jira issue.
 
-### Chrome does not open
+### Browser does not open
 
-Set the executable path:
+The script tries `CHROME`, `CHROMIUM`, then common Chrome/Chromium/Brave/Edge/Vivaldi executable names and macOS app paths. If auto-detection fails, set the executable path:
 
 ```bash
 CHROME=/usr/bin/chromium scripts/jira-browser-fetch.js PROJ-123

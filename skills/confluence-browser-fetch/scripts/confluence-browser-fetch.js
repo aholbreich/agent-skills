@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
@@ -115,8 +116,50 @@ async function waitDevtools() {
   throw new Error('Chrome DevTools endpoint did not start');
 }
 
+function isExecutable(file) {
+  try { fs.accessSync(file, fs.constants.X_OK); return true; } catch { return false; }
+}
+
+function resolveBrowserCandidate(candidate) {
+  if (!candidate) return null;
+  if (candidate.includes(path.sep)) return isExecutable(candidate) ? candidate : null;
+  for (const dir of String(process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    const full = path.join(dir, candidate);
+    if (isExecutable(full)) return full;
+  }
+  return null;
+}
+
+function findBrowserExecutable() {
+  const candidates = [
+    process.env.CHROME,
+    process.env.CHROMIUM,
+    'google-chrome',
+    'google-chrome-stable',
+    'chromium',
+    'chromium-browser',
+    'brave-browser',
+    'brave',
+    'microsoft-edge',
+    'microsoft-edge-stable',
+    'vivaldi',
+    'vivaldi-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
+  ];
+  for (const candidate of candidates) {
+    const resolved = resolveBrowserCandidate(candidate);
+    if (resolved) return resolved;
+  }
+  throw new Error('Could not find a Chromium-compatible browser. Install Chrome/Chromium/Brave/Edge/Vivaldi or set CHROME=/path/to/browser.');
+}
+
 function launchChrome(url) {
-  const chrome = process.env.CHROME || '/usr/bin/google-chrome';
+  const browser = findBrowserExecutable();
   const args = [
     `--remote-debugging-port=${opts.port}`,
     '--remote-debugging-address=127.0.0.1',
@@ -126,13 +169,15 @@ function launchChrome(url) {
     '--no-default-browser-check',
     url,
   ];
-  const child = spawn(chrome, args, { detached: true, stdio: 'ignore' });
+  console.log(`Launching browser: ${browser}`);
+  const child = spawn(browser, args, { detached: true, stdio: 'ignore' });
+  child.on('error', err => console.error(`Failed to launch browser ${browser}: ${err.message}`));
   child.unref();
 }
 
 async function ensureBrowser(openUrl) {
   if (!(await devtoolsReady())) {
-    console.log(`Opening Chrome with reusable profile: ${opts.profileDir}`);
+    console.log(`Opening Chromium-compatible browser with reusable profile: ${opts.profileDir}`);
     launchChrome(openUrl || wikiBase);
   } else {
     console.log(`Reusing Chrome DevTools on port ${opts.port}`);

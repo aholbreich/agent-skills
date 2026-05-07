@@ -2,7 +2,7 @@
 name: jira-browser-fetch
 description: Fetch Jira issue raw data through an authenticated Chrome browser session when jira-cli/API tokens do not work, especially with Microsoft/SSO. Use to archive Jira issues, Jira Software board backlogs, JQL result sets, linked tickets, rendered HTML/XML, remote links, and attachments into a raw wiki folder.
 license: MIT
-compatibility: Agent Skills standard. Tested with Pi; installable into Claude Code, Codex, OpenClaw/generic .agents skills directories. Requires Node.js 22+ with built-in fetch/WebSocket and Google Chrome/Chromium with remote debugging. No npm dependencies.
+compatibility: Agent Skills standard. Tested with Pi; installable into Claude Code, Codex, OpenClaw/generic .agents skills directories. Requires Node.js 22+ with built-in fetch/WebSocket and a Chromium-compatible browser with remote debugging (Chrome, Chromium, Brave, Edge, or Vivaldi). No npm dependencies.
 ---
 
 # Jira Browser Fetch
