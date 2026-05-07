@@ -11,6 +11,7 @@ const {
   safeName,
   extractPageId,
   renderContent,
+  wrapMacro,
   replaceMarkedBlock,
 } = lib;
 
@@ -33,6 +34,8 @@ Common options:
   --representation REP         storage | markdown (default: storage)
   --raw-dir DIR                Output/audit dir (default: CONFLUENCE_UPDATE_RAW_DIR, CONFLUENCE_RAW_DIR, or ./raw)
   --message TEXT               Version message (default: Updated by confluence-update)
+  --labels LIST                Comma-separated labels to add/set on the page
+  --wrap-macro NAME            Wrap the generated storage in a macro (e.g. page-properties)
   --minor-edit                 Mark update as minor edit (default)
   --major-edit                 Do not mark update as minor edit
   --expected-version N|auto    Fail if current page version is not N. Use 'auto' to always overwrite (default: null)
@@ -78,7 +81,9 @@ const opts = {
   representation: 'storage',
   title: '',
   message: 'Updated by confluence-update',
+  wrapMacro: '',
   minorEdit: true,
+  labels: [],
   expectedVersion: null,
   apply: false,
   marker: '',
@@ -107,6 +112,8 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--representation') opts.representation = args[++i];
   else if (a === '--title') opts.title = args[++i];
   else if (a === '--message') opts.message = args[++i];
+  else if (a === '--labels') opts.labels = args[++i].split(',').map(s => s.trim()).filter(Boolean);
+  else if (a === '--wrap-macro') opts.wrapMacro = args[++i];
   else if (a === '--minor-edit') opts.minorEdit = true;
   else if (a === '--major-edit') opts.minorEdit = false;
   else if (a === '--expected-version') opts.expectedVersion = args[++i] === 'auto' ? 'auto' : Number(args[i]);
@@ -404,7 +411,7 @@ function currentStorage(page) {
 }
 
 function updatePayload(page, storage) {
-  return {
+  const payload = {
     id: String(page.id),
     type: page.type || 'page',
     title: opts.title || page.title,
@@ -416,6 +423,12 @@ function updatePayload(page, storage) {
       message: opts.message,
     },
   };
+  if (opts.labels.length > 0) {
+    payload.metadata = {
+      labels: opts.labels.map(name => ({ prefix: 'global', name }))
+    };
+  }
+  return payload;
 }
 
 function createPayload(storage) {
@@ -426,6 +439,11 @@ function createPayload(storage) {
     body: { storage: { value: storage, representation: 'storage' } },
   };
   if (opts.parentId) payload.ancestors = [{ id: String(opts.parentId) }];
+  if (opts.labels.length > 0) {
+    payload.metadata = {
+      labels: opts.labels.map(name => ({ prefix: 'global', name }))
+    };
+  }
   return payload;
 }
 
@@ -526,7 +544,9 @@ async function runCreate(cookie, inputStorage) {
 
 async function main() {
   const rawInput = await fsp.readFile(path.resolve(opts.file), 'utf8');
-  const inputStorage = renderContent(rawInput, opts.representation);
+  let inputStorage = renderContent(rawInput, opts.representation);
+  if (opts.wrapMacro) inputStorage = wrapMacro(inputStorage, opts.wrapMacro);
+
   const pageId = opts.command === 'create' ? '' : extractPageId(opts.pageInput);
   if (opts.command !== 'create' && !pageId) throw new Error(`Could not extract page id from: ${opts.pageInput}`);
   const openUrl = opts.command === 'create' ? wikiBase : pageUrl(pageId);

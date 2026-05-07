@@ -23,6 +23,16 @@ test('confluence-update markdownToStorage converts simple agent content', () => 
   );
 });
 
+test('confluence-update wrapMacro supports page-properties', () => {
+  const result = lib.wrapMacro('<p>Content</p>', 'page-properties');
+  assert.match(result, /ac:name="details"/);
+  assert.match(result, /<ac:rich-text-body><p>Content<\/p><\/ac:rich-text-body>/);
+  assert.match(result, /ac:macro-id="[a-f0-9-]+"/);
+
+  const generic = lib.wrapMacro('<p>Content</p>', 'info');
+  assert.match(generic, /ac:name="info"/);
+});
+
 test('confluence-update replaceMarkedBlock replaces only marker contents', () => {
   const page = '<p>Intro</p>\n<!-- agent-block:summary:start -->\n<p>Old</p>\n<!-- agent-block:summary:end -->\n<p>Footer</p>';
   assert.equal(

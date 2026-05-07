@@ -1,5 +1,7 @@
 'use strict';
 
+const { randomUUID } = require('crypto');
+
 function escapeHtml(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -183,12 +185,26 @@ function generateSimpleDiff(oldText, newText) {
   return diff.join('\n');
 }
 
+function wrapMacro(storage, macroType) {
+  if (!macroType) return storage;
+  const name = String(macroType).toLowerCase();
+  
+  // Page Properties macro is internally called "details"
+  if (name === 'page-properties' || name === 'details') {
+    return `<ac:structured-macro ac:name="details" ac:schema-version="1" ac:macro-id="${randomUUID()}"><ac:rich-text-body>${storage}</ac:rich-text-body></ac:structured-macro>`;
+  }
+  
+  // Generic wrapper for other rich-text body macros
+  return `<ac:structured-macro ac:name="${escapeHtml(name)}" ac:schema-version="1" ac:macro-id="${randomUUID()}"><ac:rich-text-body>${storage}</ac:rich-text-body></ac:structured-macro>`;
+}
+
 module.exports = {
   escapeHtml,
   safeName,
   extractPageId,
   markdownToStorage,
   renderContent,
+  wrapMacro,
   blockMarkers,
   replaceMarkedBlock,
   replaceTextMatch,
