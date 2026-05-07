@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 - 2026-05-07
+
+Added:
+
+- `confluence-update` now supports `--labels "a,b,c"` to assign Confluence page labels during an update.
+- `confluence-update` now supports `--wrap-macro NAME` (e.g., `page-properties`) to automatically wrap the output HTML in a Confluence `<ac:structured-macro>` element.
+
 ## 0.7.0 - 2026-05-07
 
 Added:
