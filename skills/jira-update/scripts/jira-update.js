@@ -292,6 +292,57 @@ async function runTransition() {
   console.log(`Transitioned ${opts.issueKey} to "${transition.name}"`);
 }
 
+async function runUpdateFields() {
+  if (!opts.file) { console.error('update-fields requires --file FILE.'); process.exit(2); }
+  const raw = await fsp.readFile(path.resolve(opts.file), 'utf8');
+  const manifest = JSON.parse(raw);
+  if (!manifest.fields || typeof manifest.fields !== 'object') {
+    console.error('update-fields manifest must have a "fields" object.');
+    process.exit(2);
+  }
+  const payload = { fields: manifest.fields };
+
+  const dir = await makeRunDir(`update-fields-${opts.issueKey}`);
+  const record = {
+    command: 'update-fields',
+    dryRun: !opts.apply,
+    server: opts.server,
+    issueKey: opts.issueKey,
+    fieldKeys: Object.keys(manifest.fields),
+    message: opts.message || undefined,
+    auditDir: dir,
+  };
+
+  if (!opts.apply) {
+    await writeAudit(dir, record, {
+      'proposed.payload.json': JSON.stringify(payload, null, 2),
+    });
+    console.log(`Dry-run update-fields on ${opts.issueKey}: ${Object.keys(manifest.fields).join(', ')}`);
+    console.log(`Audit files: ${dir}`);
+    console.log('Dry-run only. Re-run with --apply to write to Jira.');
+    console.log('Note: update-fields does NOT detect concurrent edits. Re-fetch with jira-browser-fetch first if drift matters.');
+    return;
+  }
+
+  const browseUrl = `${opts.server}/browse/${opts.issueKey}`;
+  const cookie = await getSession().getCookieWithWait(browseUrl);
+  const before = await getJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}`, cookie);
+  await writeAudit(dir, record, {
+    'before.issue.json': JSON.stringify(before.json || {}, null, 2),
+    'proposed.payload.json': JSON.stringify(payload, null, 2),
+  });
+  console.log(`Applying update-fields on ${opts.issueKey}: ${Object.keys(manifest.fields).join(', ')}`);
+  console.log(`Audit files: ${dir}`);
+
+  const result = await putJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}`, cookie, payload);
+  if (result.status !== 204) {
+    throw new Error(`update-fields failed HTTP ${result.status}: ${(result.text || '').slice(0, 500).replace(/\s+/g, ' ')}`);
+  }
+  const after = await getJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}`, cookie);
+  await fsp.writeFile(path.join(dir, 'after.issue.json'), JSON.stringify(after.json || {}, null, 2));
+  console.log(`Updated ${opts.issueKey}`);
+}
+
 async function runUnimplemented() {
   console.error(`Command "${opts.command}" not yet implemented.`);
   process.exit(1);
@@ -303,7 +354,7 @@ async function main() {
     case 'create': return runCreate();
     case 'comment': return runComment();
     case 'transition': return runTransition();
-    case 'update-fields':
+    case 'update-fields': return runUpdateFields();
     case 'link':
     default:
       return runUnimplemented();
