@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { createBrowserSession } = require('./atlassian-browser');
 const {
   parseProjectInput,
   repositoriesApiUrl,
@@ -71,182 +70,23 @@ project.browseUrl = `https://bitbucket.org/${project.workspace}/workspace/projec
 opts.rawDir = path.resolve(opts.rawDir);
 opts.pagelen = Math.min(100, Math.max(1, opts.pagelen || 100));
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function endpoint(pathname) {
-  const res = await fetch(`http://127.0.0.1:${opts.port}${pathname}`);
-  if (!res.ok) throw new Error(`DevTools HTTP ${res.status} for ${pathname}`);
-  return res.json();
-}
-
-async function devtoolsReady() {
-  try { await endpoint('/json/version'); return true; } catch { return false; }
-}
-
-async function waitDevtools() {
-  for (let i = 0; i < 80; i++) {
-    if (await devtoolsReady()) return;
-    await sleep(250);
-  }
-  throw new Error('Chrome DevTools endpoint did not start');
-}
-
-async function openDevtoolsTab(url) {
-  const endpointUrl = `http://127.0.0.1:${opts.port}/json/new?${encodeURIComponent(url)}`;
-  for (const init of [{ method: 'PUT' }, {}]) {
-    try {
-      const res = await fetch(endpointUrl, init);
-      if (res.ok) { await sleep(1000); return true; }
-    } catch {}
-  }
-  return false;
-}
-
-async function hasBitbucketTab(url) {
-  const host = new URL(url).host;
-  const list = await endpoint('/json/list');
-  return list.some(t => t.type === 'page' && t.url && (() => {
-    try { return new URL(t.url).host === host; } catch { return false; }
-  })());
-}
-
-function isExecutable(file) {
-  try { fs.accessSync(file, fs.constants.X_OK); return true; } catch { return false; }
-}
-
-function resolveBrowserCandidate(candidate) {
-  if (!candidate) return null;
-  if (candidate.includes(path.sep)) return isExecutable(candidate) ? candidate : null;
-  for (const dir of String(process.env.PATH || '').split(path.delimiter)) {
-    if (!dir) continue;
-    const full = path.join(dir, candidate);
-    if (isExecutable(full)) return full;
-  }
-  return null;
-}
-
-function findBrowserExecutable() {
-  const candidates = [
-    process.env.CHROME,
-    process.env.CHROMIUM,
-    'google-chrome',
-    'google-chrome-stable',
-    'chromium',
-    'chromium-browser',
-    'brave-browser',
-    'brave',
-    'microsoft-edge',
-    'microsoft-edge-stable',
-    'vivaldi',
-    'vivaldi-stable',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-    '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
-  ];
-  for (const candidate of candidates) {
-    const resolved = resolveBrowserCandidate(candidate);
-    if (resolved) return resolved;
-  }
-  throw new Error('Could not find a Chromium-compatible browser. Install Chrome/Chromium/Brave/Edge/Vivaldi or set CHROME=/path/to/browser.');
-}
-
-function launchChrome(url) {
-  const browser = findBrowserExecutable();
-  const args = [
-    `--remote-debugging-port=${opts.port}`,
-    '--remote-debugging-address=127.0.0.1',
-    '--remote-allow-origins=*',
-    `--user-data-dir=${opts.profileDir}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    url,
-  ];
-  console.log(`Launching browser: ${browser}`);
-  const child = spawn(browser, args, { detached: true, stdio: 'ignore' });
-  child.on('error', err => console.error(`Failed to launch browser ${browser}: ${err.message}`));
-  child.unref();
-}
-
-async function ensureBrowser(openUrl) {
-  if (!(await devtoolsReady())) {
-    console.log(`Opening Chromium-compatible browser with reusable profile: ${opts.profileDir}`);
-    launchChrome(openUrl);
-  } else {
-    console.log(`Reusing Chrome DevTools on port ${opts.port}`);
-    if (await hasBitbucketTab(openUrl)) console.log(`Found existing Bitbucket tab for ${new URL(openUrl).host}; not opening another tab.`);
-    else if (await openDevtoolsTab(openUrl)) console.log(`Opened target URL in reused browser: ${openUrl}`);
-    else console.warn('Could not open target URL through DevTools; continuing with existing tabs.');
-  }
-  await waitDevtools();
-}
-
-async function getPageWsUrl() {
-  const list = await endpoint('/json/list');
-  const pages = list.filter(t => t.type === 'page' && t.webSocketDebuggerUrl);
-  const preferred = pages.find(t => (t.url || '').includes('bitbucket.org')) || pages[0];
-  return preferred && preferred.webSocketDebuggerUrl;
-}
-
-function connectCdp(wsUrl) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl);
-    let id = 0;
-    const pending = new Map();
-    const failTimer = setTimeout(() => reject(new Error('CDP websocket timeout')), 10000);
-    ws.addEventListener('open', () => {
-      clearTimeout(failTimer);
-      resolve({
-        send(method, params = {}) {
-          return new Promise((res, rej) => {
-            const msgId = ++id;
-            pending.set(msgId, { res, rej });
-            ws.send(JSON.stringify({ id: msgId, method, params }));
-          });
-        },
-        close() { try { ws.close(); } catch {} },
-      });
-    });
-    ws.addEventListener('message', ev => {
-      let data = ev.data;
-      if (typeof data !== 'string') data = Buffer.from(data).toString('utf8');
-      const msg = JSON.parse(data);
-      if (!msg.id || !pending.has(msg.id)) return;
-      const { res, rej } = pending.get(msg.id);
-      pending.delete(msg.id);
-      if (msg.error) rej(new Error(`${msg.error.message || 'CDP error'} ${JSON.stringify(msg.error)}`));
-      else res(msg.result);
-    });
-    ws.addEventListener('error', err => reject(err));
+let session = null;
+function getSession() {
+  if (session) return session;
+  session = createBrowserSession({
+    port: opts.port,
+    profileDir: opts.profileDir,
+    waitSec: opts.waitSec,
+    serverHost: 'bitbucket.org',
+    cookieUrls: ['https://bitbucket.org/'],
+    userAgent: 'bitbucket-browser-fetch/1.0',
+    verifySession: cookie => verifyBitbucketSession(cookie),
   });
-}
-
-async function getCookieHeader() {
-  const wsUrl = await getPageWsUrl();
-  if (!wsUrl) return '';
-  const cdp = await connectCdp(wsUrl);
-  try {
-    await cdp.send('Network.enable');
-    const result = await cdp.send('Network.getCookies', { urls: ['https://bitbucket.org/'] });
-    return (result.cookies || [])
-      .filter(c => c.domain && (c.domain === 'bitbucket.org' || c.domain.endsWith('.bitbucket.org')))
-      .map(c => `${c.name}=${c.value}`)
-      .join('; ');
-  } finally {
-    cdp.close();
-  }
+  return session;
 }
 
 async function fetchJson(url, cookie) {
-  const res = await fetch(url, {
-    headers: { Cookie: cookie, Accept: 'application/json', 'User-Agent': 'bitbucket-browser-fetch/1.0' },
-    redirect: 'follow',
-  });
-  const text = await res.text();
-  let json = null;
-  try { json = JSON.parse(text); } catch {}
-  return { status: res.status, contentType: res.headers.get('content-type') || '', text, json };
+  return getSession().fetchJson(url, cookie, { accept: 'application/json' });
 }
 
 async function verifyBitbucketSession(cookie) {
@@ -260,29 +100,8 @@ async function verifyBitbucketSession(cookie) {
   return { ok: false, message: `session probe HTTP ${result.status} from ${url}` };
 }
 
-async function getCookieWithWait() {
-  await ensureBrowser(project.browseUrl);
-  console.log(`If prompted in Chrome, complete Bitbucket/Atlassian login for: ${project.browseUrl}`);
-  const deadline = Date.now() + opts.waitSec * 1000;
-  let last = '';
-  let printedWait = false;
-  while (Date.now() < deadline) {
-    try {
-      const cookie = await getCookieHeader();
-      const session = await verifyBitbucketSession(cookie);
-      if (session.ok) {
-        if (process.stdout.isTTY) process.stdout.write('\n');
-        console.log(`Authenticated Bitbucket session verified via ${session.url}`);
-        return cookie;
-      }
-      last = session.message;
-    } catch (e) { last = e.message; }
-    if (process.stdout.isTTY) process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
-    else if (!printedWait) { console.log(`Waiting up to ${opts.waitSec}s for Bitbucket session...`); printedWait = true; }
-    await sleep(3000);
-  }
-  if (process.stdout.isTTY) process.stdout.write('\n');
-  throw new Error(`Could not verify authenticated Bitbucket session. Last result: ${last}`);
+function getCookieWithWait() {
+  return getSession().getCookieWithWait(project.browseUrl);
 }
 
 async function fetchRepositories(cookie) {
