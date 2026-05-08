@@ -199,6 +199,44 @@ async function runCreate() {
   console.log(`Created issue ${result.json.key} (${result.json.id})`);
 }
 
+async function runComment() {
+  if (!opts.file) { console.error('comment requires --file FILE.'); process.exit(2); }
+  const raw = await fsp.readFile(path.resolve(opts.file), 'utf8');
+  const body = lib.renderDescription(raw, opts.representation);
+  const payload = { body };
+
+  const dir = await makeRunDir(`comment-${opts.issueKey}`);
+  const record = {
+    command: 'comment',
+    dryRun: !opts.apply,
+    server: opts.server,
+    issueKey: opts.issueKey,
+    representation: opts.representation,
+    message: opts.message || undefined,
+    auditDir: dir,
+  };
+  await writeAudit(dir, record, {
+    'proposed.payload.json': JSON.stringify(payload, null, 2),
+    'proposed.adf.json': JSON.stringify(body, null, 2),
+  });
+
+  console.log(`${opts.apply ? 'Applying' : 'Dry-run'} comment on ${opts.issueKey}`);
+  console.log(`Audit files: ${dir}`);
+  if (!opts.apply) {
+    console.log('Dry-run only. Re-run with --apply to write to Jira.');
+    return;
+  }
+
+  const browseUrl = `${opts.server}/browse/${opts.issueKey}`;
+  const cookie = await getSession().getCookieWithWait(browseUrl);
+  const result = await postJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}/comment`, cookie, payload);
+  if (result.status !== 201 || !result.json || !result.json.id) {
+    throw new Error(`Comment failed HTTP ${result.status}: ${(result.text || '').slice(0, 500).replace(/\s+/g, ' ')}`);
+  }
+  await fsp.writeFile(path.join(dir, 'after.issue.json'), JSON.stringify(result.json, null, 2));
+  console.log(`Added comment ${result.json.id} on ${opts.issueKey}`);
+}
+
 async function runUnimplemented() {
   console.error(`Command "${opts.command}" not yet implemented.`);
   process.exit(1);
@@ -208,7 +246,7 @@ async function main() {
   await fsp.mkdir(opts.rawDir, { recursive: true });
   switch (opts.command) {
     case 'create': return runCreate();
-    case 'comment':
+    case 'comment': return runComment();
     case 'transition':
     case 'update-fields':
     case 'link':

@@ -190,6 +190,26 @@ test('jira-update CLI fails fast when --server is missing for create', () => {
   assert.match(result.stderr, /Missing Jira server/);
 });
 
+test('jira-update CLI dry-run comment writes audit files', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-update-'));
+  const commentPath = path.join(tmp, 'reply.md');
+  fs.writeFileSync(commentPath, '## Summary\n\nLooks good.');
+  const result = spawnSync(process.execPath, [
+    script, 'comment', 'PROJ-123',
+    '--server', 'https://example.atlassian.net',
+    '--file', commentPath,
+    '--raw-dir', tmp,
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 0, `stdout: ${result.stdout}\nstderr: ${result.stderr}`);
+  assert.match(result.stdout, /Dry-run comment on PROJ-123/);
+  const dirs = fs.readdirSync(path.join(tmp, 'jira-updates'));
+  const audit = path.join(tmp, 'jira-updates', dirs[0]);
+  const payload = JSON.parse(fs.readFileSync(path.join(audit, 'proposed.payload.json'), 'utf8'));
+  assert.equal(payload.body.type, 'doc');
+  assert.equal(payload.body.content[0].type, 'heading');
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
 test('jira-update CLI dry-run create writes audit files without contacting Jira', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-update-'));
   const manifestPath = path.join(tmp, 'issue.json');
