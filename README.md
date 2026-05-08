@@ -2,13 +2,14 @@
 
 Handcrafted [Agent Skills](https://agentskills.io/) for developer and LLM-wiki workflows. The package is intentionally a pure skills package with broad compatibility across Pi, Claude Code, Codex, OpenClaw/generic `.agents` setups, and other Agent Skills-compatible harnesses.
 
-This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetch/update tools that work well when Jira/Confluence/Bitbucket API-token authentication is unavailable because an organization uses Microsoft/SSO.
+This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetch and update tools (Jira read+write, Confluence read+write, Bitbucket read) that work well when Jira/Confluence/Bitbucket API-token authentication is unavailable because an organization uses Microsoft/SSO.
 
 ## Skills
 
 | Skill | Purpose |
 |---|---|
 | [`jira-browser-fetch`](skills/jira-browser-fetch/) | Fetch Jira issue JSON, rendered HTML/XML, linked/referenced issues, Jira Software board backlogs, JQL result sets, and attachments through an authenticated Chrome session. |
+| [`jira-update`](skills/jira-update/) | Dry-run-first Jira Cloud writes through an authenticated browser session: create issues, add comments, transition workflows, update fields, and link issues. Markdown-to-ADF conversion by default; ADF passthrough as escape hatch. |
 | [`confluence-browser-fetch`](skills/confluence-browser-fetch/) | Fetch Confluence page JSON, storage/view HTML, browser HTML, descendants, CQL result sets, and attachments through an authenticated Chrome session. |
 | [`confluence-update`](skills/confluence-update/) | Dry-run-first Confluence page updates, agent-owned block replacement, Markdown-to-storage conversion, and page creation through an authenticated browser session. |
 | [`bitbucket-browser-fetch`](skills/bitbucket-browser-fetch/) | Fetch Bitbucket Cloud project repository inventories and clone URL lists through an authenticated browser session. |
@@ -176,6 +177,7 @@ If installed globally via npm, the package exposes:
 ```bash
 agent-skills
 jira-browser-fetch
+jira-update
 confluence-browser-fetch
 confluence-update
 bitbucket-browser-fetch
@@ -280,6 +282,54 @@ Example user requests that should invoke this skill:
 - "Fetch `PROJ-123` through my browser session and include linked issues."
 - "Pull my assigned Jira issues without asking me for an API token."
 - "Use this JQL and store the raw Jira evidence under the wiki raw folder."
+
+## Jira update examples
+
+Dry-run an issue creation from a manifest:
+
+```bash
+jira-update create \
+  --server https://example.atlassian.net \
+  --file ./new-bug.json
+```
+
+Apply after review:
+
+```bash
+jira-update create \
+  --server https://example.atlassian.net \
+  --file ./new-bug.json \
+  --apply
+```
+
+Add a comment from Markdown:
+
+```bash
+jira-update comment PROJ-123 \
+  --server https://example.atlassian.net \
+  --file ./reply.md \
+  --apply
+```
+
+Transition with a comment:
+
+```bash
+jira-update transition PROJ-123 \
+  --server https://example.atlassian.net \
+  --to "In Progress" \
+  --comment-file ./status.md \
+  --apply
+```
+
+Link two issues:
+
+```bash
+jira-update link PROJ-123 \
+  --server https://example.atlassian.net \
+  --to PROJ-456 \
+  --type blocks \
+  --apply
+```
 
 ## Confluence examples
 

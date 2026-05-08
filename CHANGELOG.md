@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+(empty)
+
+## 0.10.0 - 2026-05-08
+
+Added:
+
+- New `jira-update` skill for dry-run-first Jira Cloud writes through an authenticated browser session: `create`, `comment`, `transition`, `update-fields`, and `link` commands. Markdown-to-ADF conversion by default; ADF passthrough as escape hatch.
+
+Changed:
+
+- Extracted browser/CDP/cookie helpers from all four existing skills into a single source-of-truth `lib/atlassian-browser.js`. Vendored at pack time into each `skills/*/scripts/atlassian-browser.js` so each skill folder remains self-contained on disk. Eliminates ~870 lines of duplicated code across the bundle.
+
+## 0.9.0 - 2026-05-07
+
 Added:
 
 - New `bitbucket-browser-fetch` skill for browser-authenticated Bitbucket Cloud project repository inventory, SSH/HTTPS clone URL lists, Markdown summaries, and safe clone helper scripts.
