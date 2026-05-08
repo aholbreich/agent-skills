@@ -343,9 +343,46 @@ async function runUpdateFields() {
   console.log(`Updated ${opts.issueKey}`);
 }
 
-async function runUnimplemented() {
-  console.error(`Command "${opts.command}" not yet implemented.`);
-  process.exit(1);
+async function runLink() {
+  if (!opts.to) { console.error('link requires --to ISSUE-KEY.'); process.exit(2); }
+  if (!opts.linkType) { console.error('link requires --type "blocks" (or any link type name/inward/outward).'); process.exit(2); }
+  const browseUrl = `${opts.server}/browse/${opts.issueKey}`;
+  const cookie = await getSession().getCookieWithWait(browseUrl);
+
+  const typesResp = await getJson(`${opts.server}/rest/api/3/issueLinkType`, cookie);
+  if (typesResp.status !== 200 || !typesResp.json) {
+    throw new Error(`Could not list link types. HTTP ${typesResp.status}`);
+  }
+  const linkType = lib.resolveLinkType(typesResp.json, opts.linkType);
+  const payload = lib.buildLinkPayload({ from: opts.issueKey, to: opts.to, linkType });
+
+  const dir = await makeRunDir(`link-${opts.issueKey}-${opts.to}`);
+  const record = {
+    command: 'link',
+    dryRun: !opts.apply,
+    server: opts.server,
+    fromKey: opts.issueKey,
+    toKey: opts.to,
+    linkType,
+    message: opts.message || undefined,
+    auditDir: dir,
+  };
+  await writeAudit(dir, record, {
+    'linktypes.json': JSON.stringify(typesResp.json, null, 2),
+    'proposed.payload.json': JSON.stringify(payload, null, 2),
+  });
+
+  console.log(`${opts.apply ? 'Applying' : 'Dry-run'} link ${opts.issueKey} ${linkType.outward} ${opts.to}`);
+  console.log(`Audit files: ${dir}`);
+  if (!opts.apply) {
+    console.log('Dry-run only. Re-run with --apply to write to Jira.');
+    return;
+  }
+  const result = await postJson(`${opts.server}/rest/api/3/issueLink`, cookie, payload);
+  if (result.status !== 201 && result.status !== 200) {
+    throw new Error(`link failed HTTP ${result.status}: ${(result.text || '').slice(0, 500).replace(/\s+/g, ' ')}`);
+  }
+  console.log(`Linked ${opts.issueKey} ${linkType.outward} ${opts.to}`);
 }
 
 async function main() {
@@ -355,9 +392,9 @@ async function main() {
     case 'comment': return runComment();
     case 'transition': return runTransition();
     case 'update-fields': return runUpdateFields();
-    case 'link':
+    case 'link': return runLink();
     default:
-      return runUnimplemented();
+      throw new Error(`Unhandled command: ${opts.command}`);
   }
 }
 

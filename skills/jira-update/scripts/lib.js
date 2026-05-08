@@ -246,6 +246,29 @@ function buildTransitionPayload({ transitionId, commentBody, fields }) {
   return payload;
 }
 
+function resolveLinkType(typesResponse, query) {
+  const list = (typesResponse && typesResponse.issueLinkTypes) || [];
+  if (!list.length) throw new Error('No issue link types available');
+  const want = String(query || '').toLowerCase();
+  const match = list.find(t =>
+    String(t.name).toLowerCase() === want
+    || String(t.inward).toLowerCase() === want
+    || String(t.outward).toLowerCase() === want
+  );
+  if (!match) throw new Error(`Link type not found: "${query}". Available: ${list.map(t => t.name).join(', ')}`);
+  return match;
+}
+
+function buildLinkPayload({ from, to, linkType }) {
+  if (!from || !to) throw new Error('buildLinkPayload requires from and to');
+  if (!linkType || !linkType.name) throw new Error('buildLinkPayload requires linkType.name');
+  return {
+    type: { name: linkType.name },
+    inwardIssue: { key: to },
+    outwardIssue: { key: from },
+  };
+}
+
 module.exports = {
   adfDoc,
   markdownToAdf,
@@ -255,4 +278,6 @@ module.exports = {
   resolveTransition,
   fieldValueFromCli,
   buildTransitionPayload,
+  resolveLinkType,
+  buildLinkPayload,
 };

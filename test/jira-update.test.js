@@ -190,6 +190,34 @@ test('buildTransitionPayload omits update/fields when not provided', () => {
   assert.deepEqual(payload, { transition: { id: '21' } });
 });
 
+test('resolveLinkType matches against name (case-insensitive) and inward/outward', () => {
+  const types = { issueLinkTypes: [
+    { id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' },
+    { id: '10001', name: 'Relates', inward: 'relates to', outward: 'relates to' },
+  ]};
+  assert.deepEqual(
+    lib.resolveLinkType(types, 'blocks'),
+    { id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' }
+  );
+  assert.deepEqual(
+    lib.resolveLinkType(types, 'is blocked by'),
+    { id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' }
+  );
+  assert.throws(() => lib.resolveLinkType(types, 'duplicates'), /Link type not found/);
+});
+
+test('buildLinkPayload uses inward/outward correctly', () => {
+  const linkType = { name: 'Blocks', inward: 'is blocked by', outward: 'blocks' };
+  assert.deepEqual(
+    lib.buildLinkPayload({ from: 'PROJ-1', to: 'PROJ-2', linkType }),
+    {
+      type: { name: 'Blocks' },
+      inwardIssue: { key: 'PROJ-2' },
+      outwardIssue: { key: 'PROJ-1' },
+    }
+  );
+});
+
 test('parseAssignee accepts accountId: prefix and bare strings', () => {
   assert.deepEqual(lib.parseAssignee('accountId:abc'), { accountId: 'abc' });
   assert.deepEqual(lib.parseAssignee('jane.doe'), { name: 'jane.doe' });
