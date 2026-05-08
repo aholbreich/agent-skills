@@ -169,8 +169,47 @@ function renderDescription(input, representation) {
   throw new Error(`Unsupported representation: ${representation}`);
 }
 
+function parseAssignee(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'object') return value;
+  const s = String(value);
+  if (s.startsWith('accountId:')) return { accountId: s.slice('accountId:'.length) };
+  return { name: s };
+}
+
+function buildCreatePayload(manifest) {
+  if (!manifest || typeof manifest !== 'object') throw new Error('create manifest must be an object');
+  if (!manifest.project) throw new Error('create manifest requires project (key)');
+  if (!manifest.issueType) throw new Error('create manifest requires issueType (name)');
+  if (!manifest.summary) throw new Error('create manifest requires summary');
+
+  const fields = {
+    project: { key: String(manifest.project) },
+    issuetype: { name: String(manifest.issueType) },
+    summary: String(manifest.summary),
+  };
+
+  if (manifest.description !== undefined && manifest.description !== null) {
+    fields.description = renderDescription(manifest.description, manifest.descriptionRepresentation);
+  }
+
+  if (Array.isArray(manifest.labels)) fields.labels = manifest.labels.map(String);
+  const assignee = parseAssignee(manifest.assignee);
+  if (assignee) fields.assignee = assignee;
+  if (manifest.priority) fields.priority = typeof manifest.priority === 'string' ? { name: manifest.priority } : manifest.priority;
+  if (manifest.parent) fields.parent = typeof manifest.parent === 'string' ? { key: manifest.parent } : manifest.parent;
+
+  if (manifest.fields && typeof manifest.fields === 'object') {
+    Object.assign(fields, manifest.fields);
+  }
+
+  return { fields };
+}
+
 module.exports = {
   adfDoc,
   markdownToAdf,
   renderDescription,
+  parseAssignee,
+  buildCreatePayload,
 };
