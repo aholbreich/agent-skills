@@ -34,3 +34,6 @@ jira-browser-fetch-chrome/
 # Local Skills CLI installs
 .agents/
 skills-lock.json
+
+# Vendored shared libraries (source of truth lives in lib/atlassian-browser.js)
+skills/*/scripts/atlassian-browser.js
