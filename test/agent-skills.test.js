@@ -65,7 +65,7 @@ test('agent-skills install supports selecting one bundled skill', () => {
   const result = spawnSync(process.execPath, [script, 'install', '--dir', tmp, '--skill', 'jira-browser-fetch'], { encoding: 'utf8' });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /Installing 1 of 4 skill\(s\)/);
+  assert.match(result.stdout, /Installing 1 of 5 skill\(s\)/);
   assert.equal(fs.existsSync(path.join(tmp, 'jira-browser-fetch/SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(tmp, 'confluence-browser-fetch/SKILL.md')), false);
 });
