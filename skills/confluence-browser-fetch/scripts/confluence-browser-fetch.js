@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { createBrowserSession } = require('./atlassian-browser');
 const { parseSize, formatBytes, slugify, safeName, extractPageId, sameVersion } = require('./lib');
 
 function usage() {
@@ -98,190 +97,19 @@ opts.rawDir = path.resolve(opts.rawDir);
 const wikiBase = `${opts.site}/wiki`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function endpoint(pathname) {
-  const res = await fetch(`http://127.0.0.1:${opts.port}${pathname}`);
-  if (!res.ok) throw new Error(`DevTools HTTP ${res.status} for ${pathname}`);
-  return res.json();
-}
-
-async function devtoolsReady() {
-  try { await endpoint('/json/version'); return true; } catch { return false; }
-}
-
-async function waitDevtools() {
-  for (let i = 0; i < 80; i++) {
-    if (await devtoolsReady()) return;
-    await sleep(250);
-  }
-  throw new Error('Chrome DevTools endpoint did not start');
-}
-
-async function openDevtoolsTab(url) {
-  if (!url) return false;
-  const endpointUrl = `http://127.0.0.1:${opts.port}/json/new?${encodeURIComponent(url)}`;
-  for (const init of [{ method: 'PUT' }, {}]) {
-    try {
-      const res = await fetch(endpointUrl, init);
-      if (res.ok) {
-        await sleep(500);
-        return true;
-      }
-    } catch {}
-  }
-  return false;
-}
-
-async function hasDevtoolsTabForWiki(url) {
-  if (!url) return false;
-  const host = new URL(url).host;
-  const list = await endpoint('/json/list');
-  return list.some(t => t.type === 'page' && t.url && (() => {
-    try {
-      const tabUrl = new URL(t.url);
-      return tabUrl.host === host && tabUrl.pathname.startsWith('/wiki');
-    } catch { return false; }
-  })());
-}
-
-function isExecutable(file) {
-  try { fs.accessSync(file, fs.constants.X_OK); return true; } catch { return false; }
-}
-
-function resolveBrowserCandidate(candidate) {
-  if (!candidate) return null;
-  if (candidate.includes(path.sep)) return isExecutable(candidate) ? candidate : null;
-  for (const dir of String(process.env.PATH || '').split(path.delimiter)) {
-    if (!dir) continue;
-    const full = path.join(dir, candidate);
-    if (isExecutable(full)) return full;
-  }
-  return null;
-}
-
-function findBrowserExecutable() {
-  const candidates = [
-    process.env.CHROME,
-    process.env.CHROMIUM,
-    'google-chrome',
-    'google-chrome-stable',
-    'chromium',
-    'chromium-browser',
-    'brave-browser',
-    'brave',
-    'microsoft-edge',
-    'microsoft-edge-stable',
-    'vivaldi',
-    'vivaldi-stable',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-    '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
-  ];
-  for (const candidate of candidates) {
-    const resolved = resolveBrowserCandidate(candidate);
-    if (resolved) return resolved;
-  }
-  throw new Error('Could not find a Chromium-compatible browser. Install Chrome/Chromium/Brave/Edge/Vivaldi or set CHROME=/path/to/browser.');
-}
-
-function launchChrome(url) {
-  const browser = findBrowserExecutable();
-  const args = [
-    `--remote-debugging-port=${opts.port}`,
-    '--remote-debugging-address=127.0.0.1',
-    '--remote-allow-origins=*',
-    `--user-data-dir=${opts.profileDir}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    url,
-  ];
-  console.log(`Launching browser: ${browser}`);
-  const child = spawn(browser, args, { detached: true, stdio: 'ignore' });
-  child.on('error', err => console.error(`Failed to launch browser ${browser}: ${err.message}`));
-  child.unref();
-}
-
-async function ensureBrowser(openUrl) {
-  if (!(await devtoolsReady())) {
-    console.log(`Opening Chromium-compatible browser with reusable profile: ${opts.profileDir}`);
-    launchChrome(openUrl || wikiBase);
-  } else {
-    console.log(`Reusing Chrome DevTools on port ${opts.port}`);
-    const targetUrl = openUrl || wikiBase;
-    if (targetUrl) {
-      const hasTab = await hasDevtoolsTabForWiki(targetUrl);
-      if (hasTab) {
-        console.log(`Found existing Confluence tab for ${new URL(targetUrl).host}; not opening another tab.`);
-      } else {
-        const opened = await openDevtoolsTab(targetUrl);
-        if (opened) console.log(`Opened target URL in reused browser: ${targetUrl}`);
-        else console.warn(`Could not open target URL through DevTools; continuing with existing tabs.`);
-      }
-    }
-  }
-  await waitDevtools();
-}
-
-async function getPageWsUrl() {
-  const list = await endpoint('/json/list');
-  const pages = list.filter(t => t.type === 'page' && t.webSocketDebuggerUrl);
-  const host = new URL(opts.site).host;
-  const preferred = pages.find(t => (t.url || '').includes(host)) || pages[0];
-  return preferred && preferred.webSocketDebuggerUrl;
-}
-
-function connectCdp(wsUrl) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl);
-    let id = 0;
-    const pending = new Map();
-    const failTimer = setTimeout(() => reject(new Error('CDP websocket timeout')), 10000);
-
-    ws.addEventListener('open', () => {
-      clearTimeout(failTimer);
-      resolve({
-        send(method, params = {}) {
-          return new Promise((res, rej) => {
-            const msgId = ++id;
-            pending.set(msgId, { res, rej });
-            ws.send(JSON.stringify({ id: msgId, method, params }));
-          });
-        },
-        close() { try { ws.close(); } catch {} },
-      });
-    });
-
-    ws.addEventListener('message', ev => {
-      let data = ev.data;
-      if (typeof data !== 'string') data = Buffer.from(data).toString('utf8');
-      const msg = JSON.parse(data);
-      if (!msg.id || !pending.has(msg.id)) return;
-      const { res, rej } = pending.get(msg.id);
-      pending.delete(msg.id);
-      if (msg.error) rej(new Error(`${msg.error.message || 'CDP error'} ${JSON.stringify(msg.error)}`));
-      else res(msg.result);
-    });
-
-    ws.addEventListener('error', err => reject(err));
+let session = null;
+function getSession() {
+  if (session) return session;
+  session = createBrowserSession({
+    port: opts.port,
+    profileDir: opts.profileDir,
+    waitSec: opts.waitSec,
+    serverHost: new URL(opts.site).host,
+    cookieUrls: [`${opts.site}/`, wikiBase],
+    userAgent: 'confluence-browser-fetch/1.0',
+    verifySession: cookie => verifyConfluenceSession(cookie),
   });
-}
-
-async function getCookieHeader() {
-  const wsUrl = await getPageWsUrl();
-  if (!wsUrl) return '';
-  const cdp = await connectCdp(wsUrl);
-  try {
-    await cdp.send('Network.enable');
-    const host = new URL(opts.site).host;
-    const result = await cdp.send('Network.getCookies', { urls: [`${opts.site}/`, wikiBase] });
-    const cookies = (result.cookies || [])
-      .filter(c => c.domain && (c.domain === host || c.domain.endsWith(`.${host}`)))
-      .map(c => `${c.name}=${c.value}`);
-    return cookies.join('; ');
-  } finally {
-    cdp.close();
-  }
+  return session;
 }
 
 function shouldRetry(status) {
@@ -353,31 +181,8 @@ async function verifyConfluenceSession(cookie) {
   return { ok: false, message: 'could not verify Confluence session' };
 }
 
-async function getCookieWithWait(openUrl) {
-  await ensureBrowser(openUrl || wikiBase);
-  console.log(`If prompted in Chrome, complete SSO for: ${openUrl || wikiBase}`);
-  const deadline = Date.now() + opts.waitSec * 1000;
-  let last = '';
-  while (Date.now() < deadline) {
-    try {
-      const cookie = await getCookieHeader();
-      const session = await verifyConfluenceSession(cookie);
-      if (session.ok) {
-        if (process.stdout.isTTY) process.stdout.write('\n');
-        console.log(`Authenticated Confluence session verified via ${session.url}`);
-        return cookie;
-      }
-      last = session.message;
-    } catch (e) { last = e.message; }
-    if (process.stdout.isTTY) {
-      process.stdout.write(`\r${new Date().toLocaleTimeString()} ${last.padEnd(120).slice(0, 120)}`);
-    } else if (Date.now() - deadline + opts.waitSec * 1000 < 4000) {
-      console.log(`Waiting up to ${opts.waitSec}s for Confluence session...`);
-    }
-    await sleep(3000);
-  }
-  if (process.stdout.isTTY) process.stdout.write('\n');
-  throw new Error(`Could not verify authenticated Confluence session. Last result: ${last}`);
+function getCookieWithWait(openUrl) {
+  return getSession().getCookieWithWait(openUrl || wikiBase, { tabPathPrefix: '/wiki' });
 }
 
 function cqlQuote(s) {
