@@ -154,6 +154,42 @@ test('buildCreatePayload throws when required fields are missing', () => {
   assert.throws(() => lib.buildCreatePayload({ project: 'PROJ', issueType: 'Bug' }), /summary/);
 });
 
+test('resolveTransition matches by name (case-insensitive)', () => {
+  const transitions = { transitions: [
+    { id: '11', name: 'To Do' },
+    { id: '21', name: 'In Progress' },
+    { id: '31', name: 'Done' },
+  ]};
+  assert.deepEqual(lib.resolveTransition(transitions, { name: 'In Progress' }), { id: '21', name: 'In Progress' });
+  assert.deepEqual(lib.resolveTransition(transitions, { name: 'in progress' }), { id: '21', name: 'In Progress' });
+  assert.deepEqual(lib.resolveTransition(transitions, { id: '31' }), { id: '31', name: 'Done' });
+});
+
+test('resolveTransition throws when not found and lists candidates', () => {
+  const transitions = { transitions: [{ id: '11', name: 'To Do' }] };
+  assert.throws(
+    () => lib.resolveTransition(transitions, { name: 'Done' }),
+    /Transition not found.*To Do/
+  );
+});
+
+test('buildTransitionPayload includes id, optional comment, and field overrides', () => {
+  const adf = { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }] };
+  const payload = lib.buildTransitionPayload({
+    transitionId: '21',
+    commentBody: adf,
+    fields: { resolution: 'Fixed' },
+  });
+  assert.equal(payload.transition.id, '21');
+  assert.deepEqual(payload.update.comment, [{ add: { body: adf } }]);
+  assert.deepEqual(payload.fields.resolution, { name: 'Fixed' });
+});
+
+test('buildTransitionPayload omits update/fields when not provided', () => {
+  const payload = lib.buildTransitionPayload({ transitionId: '21' });
+  assert.deepEqual(payload, { transition: { id: '21' } });
+});
+
 test('parseAssignee accepts accountId: prefix and bare strings', () => {
   assert.deepEqual(lib.parseAssignee('accountId:abc'), { accountId: 'abc' });
   assert.deepEqual(lib.parseAssignee('jane.doe'), { name: 'jane.doe' });

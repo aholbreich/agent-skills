@@ -206,10 +206,53 @@ function buildCreatePayload(manifest) {
   return { fields };
 }
 
+function resolveTransition(transitionsResponse, query) {
+  const list = (transitionsResponse && transitionsResponse.transitions) || [];
+  if (!list.length) throw new Error('No transitions available');
+  if (query.id) {
+    const match = list.find(t => String(t.id) === String(query.id));
+    if (!match) throw new Error(`Transition not found: id=${query.id}. Available: ${list.map(t => `${t.id}:${t.name}`).join(', ')}`);
+    return match;
+  }
+  if (query.name) {
+    const want = String(query.name).toLowerCase();
+    const match = list.find(t => String(t.name).toLowerCase() === want);
+    if (!match) throw new Error(`Transition not found: "${query.name}". Available: ${list.map(t => t.name).join(', ')}`);
+    return match;
+  }
+  throw new Error('resolveTransition requires {name} or {id}');
+}
+
+function fieldValueFromCli(key, value) {
+  if (['resolution', 'priority', 'status'].includes(key)) return { name: value };
+  if (['labels', 'components', 'fixVersions'].includes(key)) {
+    const parts = String(value).split(',').map(s => s.trim()).filter(Boolean);
+    if (key === 'labels') return parts;
+    return parts.map(name => ({ name }));
+  }
+  return value;
+}
+
+function buildTransitionPayload({ transitionId, commentBody, fields }) {
+  if (!transitionId) throw new Error('buildTransitionPayload requires transitionId');
+  const payload = { transition: { id: String(transitionId) } };
+  if (commentBody) {
+    payload.update = { comment: [{ add: { body: commentBody } }] };
+  }
+  if (fields && Object.keys(fields).length) {
+    payload.fields = {};
+    for (const [k, v] of Object.entries(fields)) payload.fields[k] = fieldValueFromCli(k, v);
+  }
+  return payload;
+}
+
 module.exports = {
   adfDoc,
   markdownToAdf,
   renderDescription,
   parseAssignee,
   buildCreatePayload,
+  resolveTransition,
+  fieldValueFromCli,
+  buildTransitionPayload,
 };

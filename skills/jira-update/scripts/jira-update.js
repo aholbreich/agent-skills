@@ -237,6 +237,61 @@ async function runComment() {
   console.log(`Added comment ${result.json.id} on ${opts.issueKey}`);
 }
 
+async function runTransition() {
+  if (!opts.to && !opts.toId) { console.error('transition requires --to NAME or --to-id ID.'); process.exit(2); }
+  const browseUrl = `${opts.server}/browse/${opts.issueKey}`;
+  const cookie = await getSession().getCookieWithWait(browseUrl);
+
+  const transitionsResp = await getJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}/transitions`, cookie);
+  if (transitionsResp.status !== 200 || !transitionsResp.json) {
+    throw new Error(`Could not list transitions for ${opts.issueKey}. HTTP ${transitionsResp.status}`);
+  }
+  const transition = lib.resolveTransition(transitionsResp.json, opts.toId ? { id: opts.toId } : { name: opts.to });
+
+  let commentBody = null;
+  if (opts.commentFile) {
+    const raw = await fsp.readFile(path.resolve(opts.commentFile), 'utf8');
+    commentBody = lib.renderDescription(raw, opts.representation);
+  }
+  const payload = lib.buildTransitionPayload({
+    transitionId: transition.id,
+    commentBody,
+    fields: opts.fieldOverrides,
+  });
+
+  const before = await getJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}?fields=status,summary`, cookie);
+  const dir = await makeRunDir(`transition-${opts.issueKey}`);
+  const record = {
+    command: 'transition',
+    dryRun: !opts.apply,
+    server: opts.server,
+    issueKey: opts.issueKey,
+    transition,
+    fieldOverrides: opts.fieldOverrides,
+    message: opts.message || undefined,
+    auditDir: dir,
+  };
+  await writeAudit(dir, record, {
+    'before.issue.json': JSON.stringify(before.json || {}, null, 2),
+    'transitions.json': JSON.stringify(transitionsResp.json, null, 2),
+    'proposed.payload.json': JSON.stringify(payload, null, 2),
+  });
+
+  console.log(`${opts.apply ? 'Applying' : 'Dry-run'} transition ${opts.issueKey} -> "${transition.name}" (id ${transition.id})`);
+  console.log(`Audit files: ${dir}`);
+  if (!opts.apply) {
+    console.log('Dry-run only. Re-run with --apply to write to Jira.');
+    return;
+  }
+  const result = await postJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}/transitions`, cookie, payload);
+  if (result.status !== 204) {
+    throw new Error(`Transition failed HTTP ${result.status}: ${(result.text || '').slice(0, 500).replace(/\s+/g, ' ')}`);
+  }
+  const after = await getJson(`${opts.server}/rest/api/3/issue/${opts.issueKey}?fields=status,summary`, cookie);
+  await fsp.writeFile(path.join(dir, 'after.issue.json'), JSON.stringify(after.json || {}, null, 2));
+  console.log(`Transitioned ${opts.issueKey} to "${transition.name}"`);
+}
+
 async function runUnimplemented() {
   console.error(`Command "${opts.command}" not yet implemented.`);
   process.exit(1);
@@ -247,7 +302,7 @@ async function main() {
   switch (opts.command) {
     case 'create': return runCreate();
     case 'comment': return runComment();
-    case 'transition':
+    case 'transition': return runTransition();
     case 'update-fields':
     case 'link':
     default:
