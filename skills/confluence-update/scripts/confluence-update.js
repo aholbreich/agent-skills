@@ -14,20 +14,7 @@ const {
   replaceMarkedBlock,
 } = lib;
 
-function usage() {
-  console.log(`Usage: confluence-update <command> [options]
-
-Safely update or create Confluence Cloud pages through an authenticated browser session.
-Dry-run is the default; pass --apply to write to Confluence.
-
-Commands:
-  update PAGE_ID_OR_URL        Replace an existing page body
-  replace-block PAGE_ID_OR_URL Replace only a marked agent-owned block
-  replace-text PAGE_ID_OR_URL  Replace an exact matched string in the page
-  replace-element PAGE_ID_OR_URL Replace an element by its local-id
-  create                       Create a new page
-
-Common options:
+const COMMON_OPTIONS = `Common options:
   --site URL                   Atlassian site base URL (or CONFLUENCE_SITE), e.g. https://example.atlassian.net
   --file FILE                  Input file containing storage XHTML or Markdown
   --representation REP         storage | markdown (default: storage)
@@ -41,31 +28,109 @@ Common options:
   --apply                      Actually write. Without this, only dry-run/audit files are written
   --wait SEC                   Wait time for SSO/session (default: 900)
   --port PORT                  Chrome DevTools port (default: CONFLUENCE_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9224)
-  --profile-dir DIR            Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/confluence-browser-fetch-chrome)
+  --profile-dir DIR            Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/confluence-browser-fetch-chrome)`;
 
-Update options:
-  --title TITLE                Override page title while updating
+function usage() {
+  console.log(`Usage: confluence-update <command> [options]
 
-replace-block options:
-  --marker NAME                Required marker name, e.g. agent-summary for <!-- agent-block:agent-summary:start -->
+Safely update or create Confluence Cloud pages through an authenticated browser session.
+Dry-run is the default; pass --apply to write to Confluence.
 
-replace-text options:
-  --match TEXT                 Required exact string to find and replace
+Commands:
+  update PAGE_ID_OR_URL        Replace an existing page body
+  replace-block PAGE_ID_OR_URL Replace only a marked agent-owned block
+  replace-text PAGE_ID_OR_URL  Replace an exact matched string in the page
+  replace-element PAGE_ID_OR_URL Replace an element by its local-id
+  create                       Create a new page
 
-replace-element options:
-  --local-id ID                Required local-id attribute value of the element to replace
+Run "confluence-update <command> --help" for command-specific options.
 
-Create options:
-  --space KEY                  Required Confluence space key
-  --title TITLE                Required page title
-  --parent-id ID               Parent page id. Required unless --allow-root is passed
-  --allow-root                 Allow creating a root page without parent-id
+${COMMON_OPTIONS}
 
 Examples:
   confluence-update update 123456 --site https://example.atlassian.net --file page.storage.html --apply
   confluence-update replace-block 123456 --marker agent-summary --file summary.md --representation markdown --apply
   confluence-update create --site https://example.atlassian.net --space ABC --parent-id 123456 --title 'New Page' --file page.md --representation markdown --apply
 `);
+}
+
+const COMMAND_HELP = {
+  update: `Usage: confluence-update update PAGE_ID_OR_URL [options]
+
+Replace an existing page's body with new content.
+
+Required:
+  --file FILE                  Storage XHTML or Markdown source.
+
+Optional:
+  --representation REP         storage (default) or markdown.
+  --title TITLE                Override page title while updating.
+  --expected-version N|auto    Fail if current page version is not N (default: no check).
+
+${COMMON_OPTIONS}
+`,
+  'replace-block': `Usage: confluence-update replace-block PAGE_ID_OR_URL [options]
+
+Replace only an agent-owned marked block in an existing page. Block is delimited by
+<!-- agent-block:NAME:start --> ... <!-- agent-block:NAME:end --> comments.
+
+Required:
+  --file FILE                  Replacement content (Markdown or storage).
+  --marker NAME                Marker name, e.g. agent-summary.
+
+Optional:
+  --representation REP         storage (default) or markdown.
+
+${COMMON_OPTIONS}
+`,
+  'replace-text': `Usage: confluence-update replace-text PAGE_ID_OR_URL [options]
+
+Replace an exact unique string in the page's storage XHTML.
+
+Required:
+  --file FILE                  Replacement content (Markdown or storage).
+  --match TEXT                 Exact string to find. Must be unique in the page; fails otherwise.
+
+Optional:
+  --representation REP         storage (default) or markdown.
+
+${COMMON_OPTIONS}
+`,
+  'replace-element': `Usage: confluence-update replace-element PAGE_ID_OR_URL [options]
+
+Replace an element identified by its local-id attribute. Caller must supply the
+new element's full XHTML (including the local-id) in --file.
+
+Required:
+  --file FILE                  Full replacement element (storage XHTML).
+  --local-id ID                local-id attribute value of the element to replace.
+
+${COMMON_OPTIONS}
+`,
+  create: `Usage: confluence-update create [options]
+
+Create a new Confluence page.
+
+Required:
+  --file FILE                  Page body (Markdown or storage).
+  --space KEY                  Confluence space key.
+  --title TITLE                Page title.
+  --parent-id ID               Parent page id (or --allow-root for a root page).
+
+Optional:
+  --representation REP         storage (default) or markdown.
+  --allow-root                 Permit creating a root page without --parent-id.
+
+${COMMON_OPTIONS}
+`,
+};
+
+function commandHelp(command) {
+  if (COMMAND_HELP[command]) {
+    console.log(COMMAND_HELP[command]);
+  } else {
+    usage();
+  }
 }
 
 const opts = {
@@ -94,12 +159,16 @@ const opts = {
 };
 
 const args = process.argv.slice(2);
-if (!args.length || args.includes('-h') || args.includes('--help')) { usage(); process.exit(0); }
+if (!args.length || args[0] === '-h' || args[0] === '--help') { usage(); process.exit(0); }
 opts.command = args.shift();
 if (!['update', 'replace-block', 'replace-text', 'replace-element', 'create'].includes(opts.command)) {
   console.error(`Unknown command: ${opts.command}`);
   usage();
   process.exit(2);
+}
+if (args.includes('--help') || args.includes('-h')) {
+  commandHelp(opts.command);
+  process.exit(0);
 }
 if (opts.command !== 'create') opts.pageInput = args.shift() || '';
 

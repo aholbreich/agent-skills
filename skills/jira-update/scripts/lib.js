@@ -1,5 +1,12 @@
 'use strict';
 
+class UsageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'UsageError';
+  }
+}
+
 function adfDoc(content) {
   return { type: 'doc', version: 1, content: content || [] };
 }
@@ -162,11 +169,11 @@ function markdownToAdf(input) {
 function renderDescription(input, representation) {
   const rep = String(representation || 'markdown').toLowerCase();
   if (rep === 'adf') {
-    if (!input || typeof input !== 'object') throw new Error('descriptionRepresentation: adf requires an ADF object');
+    if (!input || typeof input !== 'object') throw new UsageError('descriptionRepresentation: adf requires an ADF object');
     return input;
   }
   if (rep === 'markdown' || rep === 'md') return markdownToAdf(String(input ?? ''));
-  throw new Error(`Unsupported representation: ${representation}`);
+  throw new UsageError(`Unsupported representation: ${representation}`);
 }
 
 function parseAssignee(value) {
@@ -178,10 +185,10 @@ function parseAssignee(value) {
 }
 
 function buildCreatePayload(manifest) {
-  if (!manifest || typeof manifest !== 'object') throw new Error('create manifest must be an object');
-  if (!manifest.project) throw new Error('create manifest requires project (key)');
-  if (!manifest.issueType) throw new Error('create manifest requires issueType (name)');
-  if (!manifest.summary) throw new Error('create manifest requires summary');
+  if (!manifest || typeof manifest !== 'object') throw new UsageError('create manifest must be an object');
+  if (!manifest.project) throw new UsageError('create manifest requires project (key)');
+  if (!manifest.issueType) throw new UsageError('create manifest requires issueType (name)');
+  if (!manifest.summary) throw new UsageError('create manifest requires summary');
 
   const fields = {
     project: { key: String(manifest.project) },
@@ -208,19 +215,19 @@ function buildCreatePayload(manifest) {
 
 function resolveTransition(transitionsResponse, query) {
   const list = (transitionsResponse && transitionsResponse.transitions) || [];
-  if (!list.length) throw new Error('No transitions available');
+  if (!list.length) throw new UsageError('No transitions available');
   if (query.id) {
     const match = list.find(t => String(t.id) === String(query.id));
-    if (!match) throw new Error(`Transition not found: id=${query.id}. Available: ${list.map(t => `${t.id}:${t.name}`).join(', ')}`);
+    if (!match) throw new UsageError(`Transition not found: id=${query.id}. Available: ${list.map(t => `${t.id}:${t.name}`).join(', ')}`);
     return match;
   }
   if (query.name) {
     const want = String(query.name).toLowerCase();
     const match = list.find(t => String(t.name).toLowerCase() === want);
-    if (!match) throw new Error(`Transition not found: "${query.name}". Available: ${list.map(t => t.name).join(', ')}`);
+    if (!match) throw new UsageError(`Transition not found: "${query.name}". Available: ${list.map(t => t.name).join(', ')}`);
     return match;
   }
-  throw new Error('resolveTransition requires {name} or {id}');
+  throw new UsageError('resolveTransition requires {name} or {id}');
 }
 
 function fieldValueFromCli(key, value) {
@@ -234,7 +241,7 @@ function fieldValueFromCli(key, value) {
 }
 
 function buildTransitionPayload({ transitionId, commentBody, fields }) {
-  if (!transitionId) throw new Error('buildTransitionPayload requires transitionId');
+  if (!transitionId) throw new UsageError('buildTransitionPayload requires transitionId');
   const payload = { transition: { id: String(transitionId) } };
   if (commentBody) {
     payload.update = { comment: [{ add: { body: commentBody } }] };
@@ -248,20 +255,20 @@ function buildTransitionPayload({ transitionId, commentBody, fields }) {
 
 function resolveLinkType(typesResponse, query) {
   const list = (typesResponse && typesResponse.issueLinkTypes) || [];
-  if (!list.length) throw new Error('No issue link types available');
+  if (!list.length) throw new UsageError('No issue link types available');
   const want = String(query || '').toLowerCase();
   const match = list.find(t =>
     String(t.name).toLowerCase() === want
     || String(t.inward).toLowerCase() === want
     || String(t.outward).toLowerCase() === want
   );
-  if (!match) throw new Error(`Link type not found: "${query}". Available: ${list.map(t => t.name).join(', ')}`);
+  if (!match) throw new UsageError(`Link type not found: "${query}". Available: ${list.map(t => t.name).join(', ')}`);
   return match;
 }
 
 function buildLinkPayload({ from, to, linkType }) {
-  if (!from || !to) throw new Error('buildLinkPayload requires from and to');
-  if (!linkType || !linkType.name) throw new Error('buildLinkPayload requires linkType.name');
+  if (!from || !to) throw new UsageError('buildLinkPayload requires from and to');
+  if (!linkType || !linkType.name) throw new UsageError('buildLinkPayload requires linkType.name');
   return {
     type: { name: linkType.name },
     inwardIssue: { key: to },
@@ -270,6 +277,7 @@ function buildLinkPayload({ from, to, linkType }) {
 }
 
 module.exports = {
+  UsageError,
   adfDoc,
   markdownToAdf,
   renderDescription,

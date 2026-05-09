@@ -7,6 +7,15 @@ const path = require('node:path');
 const { createBrowserSession } = require('./atlassian-browser');
 const lib = require('./lib');
 
+const COMMON_OPTIONS = `Common options:
+  --server URL          Jira base URL (or JIRA_SERVER), e.g. https://example.atlassian.net
+  --raw-dir DIR         Audit directory (default: ./raw)
+  --apply               Actually write to Jira (without it, dry-run only)
+  --message TEXT        Annotate the local audit record
+  --wait SEC            Wait time for SSO/session (default: 900)
+  --port PORT           Chrome DevTools port (default: 9225 or ATLASSIAN_CHROME_DEBUG_PORT)
+  --profile-dir DIR     Chrome profile dir`;
+
 function topUsage() {
   console.log(`Usage: jira-update <command> [options]
 
@@ -20,15 +29,89 @@ Commands:
 Run "jira-update <command> --help" for command-specific options.
 Dry-run is the default; --apply is required to write.
 
-Common options:
-  --server URL          Jira base URL (or JIRA_SERVER), e.g. https://example.atlassian.net
-  --raw-dir DIR         Audit directory (default: ./raw)
-  --apply               Actually write to Jira
-  --message TEXT        Annotate the local audit record
-  --wait SEC            Wait time for SSO/session (default: 900)
-  --port PORT           Chrome DevTools port (default: 9225 or ATLASSIAN_CHROME_DEBUG_PORT)
-  --profile-dir DIR     Chrome profile dir
+${COMMON_OPTIONS}
 `);
+}
+
+const COMMAND_HELP = {
+  create: `Usage: jira-update create [options]
+
+Create a new Jira issue from a JSON manifest.
+
+Required:
+  --file FILE              Manifest JSON. Must include: project, issueType, summary.
+                           Optional: description, descriptionRepresentation (markdown|adf, default markdown),
+                           labels, assignee ("accountId:..." or bare name), priority, parent, fields (escape hatch).
+
+${COMMON_OPTIONS}
+`,
+  comment: `Usage: jira-update comment ISSUE-KEY [options]
+
+Add a comment to an existing issue.
+
+Required:
+  --file FILE              Comment body source.
+  --representation REP     markdown (default) or adf.
+
+${COMMON_OPTIONS}
+`,
+  transition: `Usage: jira-update transition ISSUE-KEY [options]
+
+Move an issue through its workflow.
+
+Required (one of):
+  --to NAME                Transition name, case-insensitive (e.g. "In Progress").
+  --to-id ID               Transition id (skips name lookup).
+
+Optional:
+  --comment-file FILE      Comment to attach to the transition.
+  --representation REP     markdown (default) or adf for the comment file.
+  --field key=value        Set a field as part of the transition. Repeatable.
+
+--field key=value heuristics:
+  priority, resolution, status   wrapped as { name: VALUE }
+  labels, components, fixVersions  split on commas; labels become a string array;
+                                   components/fixVersions become [{name},...]
+  any other key                  passed through as a plain string
+
+${COMMON_OPTIONS}
+`,
+  'update-fields': `Usage: jira-update update-fields ISSUE-KEY [options]
+
+Partial field update (PUT /issue/{key}). Does NOT detect concurrent edits;
+re-fetch with jira-browser-fetch first if drift matters.
+
+Required:
+  --file FILE              JSON manifest with a top-level "fields" object.
+                           Values are sent verbatim — caller is responsible for shape
+                           (e.g. labels: ["a","b"], priority: { name: "High" }).
+
+${COMMON_OPTIONS}
+`,
+  link: `Usage: jira-update link FROM-KEY [options]
+
+Create an issue link between two issues.
+
+Required:
+  --to ISSUE-KEY           Target issue key (validated as PROJ-123 form).
+  --type LINK-TYPE         Link type by name, inward, or outward
+                           (e.g. "blocks", "is blocked by", "relates to").
+
+${COMMON_OPTIONS}
+`,
+};
+
+function commandHelp(command) {
+  if (COMMAND_HELP[command]) {
+    console.log(COMMAND_HELP[command]);
+  } else {
+    topUsage();
+  }
+}
+
+const ISSUE_KEY_RE = /^[A-Z][A-Z0-9]+-\d+$/;
+function validIssueKey(s) {
+  return ISSUE_KEY_RE.test(String(s || ''));
 }
 
 const opts = {
@@ -60,12 +143,21 @@ if (!['create', 'comment', 'transition', 'update-fields', 'link'].includes(opts.
   process.exit(2);
 }
 
+if (args.includes('--help') || args.includes('-h')) {
+  commandHelp(opts.command);
+  process.exit(0);
+}
+
 if (['comment', 'transition', 'update-fields', 'link'].includes(opts.command)) {
   if (!args.length || args[0].startsWith('-')) {
-    console.error(`${opts.command} requires an issue key as the first argument.`);
+    console.error(`error: ${opts.command} requires an issue key as the first argument (e.g. PROJ-123).`);
     process.exit(2);
   }
   opts.issueKey = args.shift();
+  if (!validIssueKey(opts.issueKey)) {
+    console.error(`error: invalid issue key "${opts.issueKey}". Expected format like PROJ-123 (uppercase letters, then "-", then digits).`);
+    process.exit(2);
+  }
 }
 
 for (let i = 0; i < args.length; i++) {
@@ -97,6 +189,11 @@ opts.rawDir = path.resolve(opts.rawDir);
 
 if (!opts.server) {
   console.error('Missing Jira server. Pass --server https://example.atlassian.net or set JIRA_SERVER.');
+  process.exit(2);
+}
+
+if (opts.command === 'link' && opts.to && !validIssueKey(opts.to)) {
+  console.error(`error: invalid --to issue key "${opts.to}". Expected format like PROJ-123.`);
   process.exit(2);
 }
 
@@ -399,6 +496,10 @@ async function main() {
 }
 
 main().catch(err => {
+  if (err && err.name === 'UsageError') {
+    console.error(`error: ${err.message}`);
+    process.exit(2);
+  }
   console.error(`\nERROR: ${err.stack || err.message}`);
   process.exit(1);
 });

@@ -239,6 +239,66 @@ test('jira-update CLI --help exits 0 and prints usage', () => {
   assert.match(result.stdout, /create\s+/);
 });
 
+test('jira-update CLI per-command --help exits 0 and prints command-specific section', () => {
+  for (const cmd of ['create', 'comment', 'transition', 'update-fields', 'link']) {
+    const result = spawnSync(process.execPath, [script, cmd, '--help'], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `${cmd} --help exit: ${result.status}, stderr: ${result.stderr}`);
+    assert.match(result.stdout, new RegExp(`Usage: jira-update ${cmd}`), `${cmd} help should mention command in usage line`);
+  }
+});
+
+test('jira-update CLI transition --help documents --field key=value heuristics', () => {
+  const result = spawnSync(process.execPath, [script, 'transition', '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /priority.*resolution.*status/i);
+  assert.match(result.stdout, /labels.*comma/i);
+  assert.match(result.stdout, /name: VALUE/);
+});
+
+test('jira-update CLI command --help works after issue key too', () => {
+  const result = spawnSync(process.execPath, [script, 'comment', 'PROJ-1', '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Usage: jira-update comment/);
+});
+
+test('jira-update CLI rejects invalid issue keys with usage exit 2', () => {
+  for (const key of ['proj-1', 'PROJ_1', '1-PROJ', 'PROJ-abc', 'P-1']) {
+    const result = spawnSync(process.execPath, [
+      script, 'comment', key,
+      '--server', 'https://example.atlassian.net',
+      '--file', '/tmp/none',
+    ], { encoding: 'utf8' });
+    assert.equal(result.status, 2, `${key} should be rejected`);
+    assert.match(result.stderr, /invalid issue key/i, `${key} error should mention issue key`);
+  }
+});
+
+test('jira-update CLI rejects invalid --to issue key for link', () => {
+  const result = spawnSync(process.execPath, [
+    script, 'link', 'PROJ-1',
+    '--server', 'https://example.atlassian.net',
+    '--to', 'bad_key', '--type', 'blocks',
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /invalid --to issue key/i);
+});
+
+test('jira-update CLI create with manifest missing project exits 2 cleanly (no stack trace)', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-update-'));
+  const manifestPath = path.join(tmp, 'issue.json');
+  fs.writeFileSync(manifestPath, JSON.stringify({ summary: 'no project here' }));
+  const result = spawnSync(process.execPath, [
+    script, 'create',
+    '--server', 'https://example.atlassian.net',
+    '--file', manifestPath,
+    '--raw-dir', tmp,
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 2, `expected exit 2; stderr: ${result.stderr}`);
+  assert.match(result.stderr, /^error: .*project/im);
+  assert.doesNotMatch(result.stderr, /^\s*at /m);
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
 test('jira-update CLI rejects unknown command', () => {
   const result = spawnSync(process.execPath, [script, 'frobnicate'], { encoding: 'utf8' });
   assert.equal(result.status, 2);

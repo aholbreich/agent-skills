@@ -4,6 +4,18 @@
 
 (empty)
 
+## 1.0.1 - 2026-05-09
+
+Added:
+
+- `jira-update <command> --help` and `confluence-update <command> --help` now print command-specific options instead of falling back to top-level usage.
+- `jira-update transition --help` documents the `--field key=value` heuristics (`priority`/`resolution`/`status` wrap as `{name: VALUE}`; `labels`/`components`/`fixVersions` split on commas; everything else passes through as a string).
+- `jira-update` validates issue keys client-side (`PROJ-123` form). `comment`, `transition`, `update-fields`, `link <FROM>`, and `link --to <TO>` fail fast with exit 2 instead of round-tripping a bad key through SSO and the Jira REST API.
+
+Changed:
+
+- `jira-update` validation errors (missing manifest fields, unresolved transitions/link types, bad representation) now exit 2 with a clean `error: ...` message instead of dumping a Node stack trace and exiting 1. Implemented via a new `UsageError` class in `skills/jira-update/scripts/lib.js`.
+
 ## 1.0.0 - 2026-05-08
 
 Added:

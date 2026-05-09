@@ -70,6 +70,14 @@ test('confluence-update CLI --help exits successfully without browser', () => {
   assert.match(result.stdout, /replace-block/);
 });
 
+test('confluence-update CLI per-command --help prints command-specific section', () => {
+  for (const cmd of ['update', 'replace-block', 'replace-text', 'replace-element', 'create']) {
+    const result = spawnSync(process.execPath, [script, cmd, '--help'], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `${cmd} --help exit: ${result.status}, stderr: ${result.stderr}`);
+    assert.match(result.stdout, new RegExp(`Usage: confluence-update ${cmd}`), `${cmd} help should mention command`);
+  }
+});
+
 test('confluence-update CLI fails fast when site is missing', () => {
   const result = spawnSync(process.execPath, [script, 'update', '123456', '--file', 'page.html'], {
     encoding: 'utf8',
