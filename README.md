@@ -1,8 +1,18 @@
 # Agent Skills
 
-Handcrafted [Agent Skills](https://agentskills.io/) for developer and LLM-wiki workflows. The package is intentionally a pure skills package with broad compatibility across Pi, Claude Code, Codex, OpenClaw/generic `.agents` setups, and other Agent Skills-compatible harnesses.
+**Browser-authenticated Atlassian write surface for SSO-locked organizations.** Five [Agent Skills](https://agentskills.io/) covering Jira read+write, Confluence read+write, and Bitbucket read — designed for orgs where Microsoft/SSO blocks API-token use.
 
-This repository is a pure skills package. It currently contains browser-authenticated Atlassian fetch and update tools (Jira read+write, Confluence read+write, Bitbucket read) that work well when Jira/Confluence/Bitbucket API-token authentication is unavailable because an organization uses Microsoft/SSO.
+The package is a pure Agent Skills bundle, compatible with Pi, Claude Code, Codex, OpenClaw / generic `.agents` setups, and other Agent Skills-compatible harnesses.
+
+## Why this exists
+
+Most Atlassian automation tools assume API tokens. In SSO-locked enterprises, API tokens are often disabled or restricted in ways that make scripted writes painful. These skills route through an authenticated **browser session** instead — you log in to Jira/Confluence/Bitbucket once in Chrome, and the skills replay your cookies via DevTools to make REST calls. No API token required.
+
+Beyond the SSO bypass, the skills are built around three differentiators:
+
+- **Dry-run-first writes.** Every write command (`jira-update create`, `confluence-update replace-block`, etc.) emits a full audit folder under `raw/` first. You only get a real write when you re-run with `--apply`. Each audit folder contains the proposed payload, the before-state, and a diff summary — review exactly what would happen before it does.
+- **Markdown → ADF conversion.** `jira-update` converts Markdown to Atlassian Document Format (Jira Cloud's structured rich-text representation), so agents write descriptions, comments, and transitions in a familiar format without hand-rolling ADF JSON.
+- **Shared browser session.** All Atlassian skills can reuse a single Chrome profile + DevTools port, so you log in once and every fetch/update skill rides the same SSO session.
 
 ## Skills
 
@@ -102,18 +112,22 @@ npx @aholbreich/agent-skills
 Install for a specific target:
 
 ```bash
-npx @aholbreich/agent-skills install --target agents
-npx @aholbreich/agent-skills install --target claude
-npx @aholbreich/agent-skills install --target codex
-npx @aholbreich/agent-skills install --target project
+npx @aholbreich/agent-skills install --target agents          # ~/.agents/skills (default)
+npx @aholbreich/agent-skills install --target claude          # ~/.claude/skills
+npx @aholbreich/agent-skills install --target codex           # ~/.codex/skills
+npx @aholbreich/agent-skills install --target pi              # ~/.pi/agent/skills
+npx @aholbreich/agent-skills install --target project-agents  # ./.agents/skills
+npx @aholbreich/agent-skills install --target project-pi      # ./.pi/skills
 ```
+
+The bare `--target project` is a deprecated alias for `--target project-pi`; use the explicit form. Run `npx @aholbreich/agent-skills paths` to see every target's full path.
 
 Install only selected skills:
 
 ```bash
 npx @aholbreich/agent-skills install --skill jira-browser-fetch
 npx @aholbreich/agent-skills install --skill confluence-browser-fetch
-npx @aholbreich/agent-skills install --skill jira-browser-fetch --target project
+npx @aholbreich/agent-skills install --skill jira-browser-fetch --target project-agents
 ```
 
 Or use the dependency-free interactive picker:
@@ -375,9 +389,9 @@ Disable the limit:
 --max-attachment-size unlimited
 ```
 
-## Output and LLM wiki use
+## Example workflow: populating an LLM wiki
 
-The tools are designed to populate a wiki `raw/` folder. They do not synthesize pages themselves. A typical LLM wiki workflow is:
+One common use case for the fetch skills is feeding an LLM-curated knowledge base. The tools populate a `raw/` evidence folder; they do not synthesize pages themselves. A typical pipeline:
 
 1. fetch Jira/Confluence sources into `raw/`,
 2. treat `raw/` as immutable evidence,

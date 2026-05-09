@@ -40,7 +40,10 @@ Commands:
   help                    Show this help
 
 Options for install:
-  --target NAME           pi | agents | claude | codex | openclaw | project | project-agents | project-claude | project-codex (default: agents)
+  --target NAME           Install destination (default: agents). Run "agent-skills paths" for full paths.
+                          User-scoped:    pi | agents | claude | codex | openclaw
+                          Project-scoped: project-pi | project-agents | project-claude | project-codex
+                          Deprecated:     project (alias for project-pi)
   --dir PATH              Custom skills directory, overrides --target
   --skill NAME            Install only selected skill(s); repeatable, comma-separated, or '*' for all
   --pick                  Interactively choose which bundled skills to install
@@ -54,10 +57,10 @@ Examples:
   npx @aholbreich/agent-skills install --pick
   npx @aholbreich/agent-skills install --target agents --force
   npx @aholbreich/agent-skills install --target pi --force
-  npx @aholbreich/agent-skills install --target project
+  npx @aholbreich/agent-skills install --target project-agents
+  npx @aholbreich/agent-skills install --target project-pi
   npx @aholbreich/agent-skills install --target claude
   npx @aholbreich/agent-skills install --target codex
-  npx @aholbreich/agent-skills install --target agents
   npx @aholbreich/agent-skills install --dir ~/.pi/agent/skills
   npx @aholbreich/agent-skills list
 
@@ -160,6 +163,9 @@ async function install(args) {
   if (!customDir && !TARGETS[target]) {
     throw new Error(`Unknown target '${target}'. Valid targets: ${Object.keys(TARGETS).join(', ')}`);
   }
+  if (target === 'project' && !customDir) {
+    console.warn('warning: --target project is deprecated; it maps to ./.pi/skills. Use --target project-pi for the same path or --target project-agents for ./.agents/skills.');
+  }
   if (pick && skillFilters.length) {
     throw new Error('Use either --pick or --skill, not both');
   }
@@ -193,9 +199,9 @@ async function install(args) {
   }
 
   console.log(`Done. Installed: ${installed}. Skipped: ${skipped}.`);
-  if (target.startsWith('project') && !customDir) {
+  if ((target === 'project' || target.startsWith('project-')) && !customDir) {
     console.log('Project-local skills are available when running an Agent Skills-compatible tool inside this project.');
-  } else if (target === 'pi' && !customDir) {
+  } else if ((target === 'pi' || target === 'project-pi') && !customDir) {
     console.log('Restart Pi or start a new session to discover newly installed skills.');
   }
 }
