@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-(empty)
+Changed:
+
+- Replaced the 19-step `npm run check` chain with a `bin/check.js` script that auto-discovers `bin/`, `lib/`, and every `skills/*/scripts/` JS file. Aggregates failures (no longer stops at the first error) and prints a summary line. New skills/scripts are picked up automatically with no `package.json` edit.
 
 ## 1.0.1 - 2026-05-09
 

@@ -44,7 +44,7 @@
   },
   "scripts": {
     "vendor": "node bin/vendor.js",
-    "check": "node --check bin/agent-skills.js && node --check bin/vendor.js && node --check lib/atlassian-browser.js && npm run vendor && node --check skills/jira-browser-fetch/scripts/jira-browser-fetch.js && node --check skills/jira-browser-fetch/scripts/lib.js && node --check skills/jira-browser-fetch/scripts/atlassian-browser.js && node --check skills/confluence-browser-fetch/scripts/confluence-browser-fetch.js && node --check skills/confluence-browser-fetch/scripts/lib.js && node --check skills/confluence-browser-fetch/scripts/atlassian-browser.js && node --check skills/confluence-update/scripts/confluence-update.js && node --check skills/confluence-update/scripts/lib.js && node --check skills/confluence-update/scripts/atlassian-browser.js && node --check skills/bitbucket-browser-fetch/scripts/bitbucket-browser-fetch.js && node --check skills/bitbucket-browser-fetch/scripts/lib.js && node --check skills/bitbucket-browser-fetch/scripts/atlassian-browser.js && node --check skills/jira-update/scripts/jira-update.js && node --check skills/jira-update/scripts/lib.js && node --check skills/jira-update/scripts/atlassian-browser.js",
+    "check": "node bin/check.js",
     "pretest": "npm run vendor",
     "test": "node --test",
     "ci": "npm run check && npm test && npm pack --dry-run",
