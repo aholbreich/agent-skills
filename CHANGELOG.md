@@ -8,6 +8,7 @@ Added:
 - `jira-browser-fetch` prints aggregate progress (`[N/total] pct%`) and a trailing ETA line during multi-issue runs.
 - `confluence-update` and `confluence-browser-fetch` emit a clearer error when Confluence probes return 404. After all wikiBase probes 404, the verifier does one sanity probe against the Jira API at the same site root; if that succeeds, the error specifically says "cookies are valid for ${site} but Confluence at ${wikiBase} returned 404", pointing to either a wrong `--site` or a tenant without Confluence enabled.
 - README gains a "Project status" section flagging the opinionated browser-only auth approach, Linux-Fedora-only end-to-end testing, and a feedback request.
+- Every SKILL.md's "Shared Atlassian SSO Session" section now teaches calling agents three things: (i) the script-Chrome is a separate window from the user's regular browser, cookies from the user's Chrome are not read; (ii) reuse signal — `Reusing Chrome DevTools on port 9223` / `Found existing tab for <host>` means do not re-prompt SSO; (iii) `CHROME=/path/to/launcher` env var for Flatpak/Snap/non-PATH installs. The Typical Workflow's SSO step is clarified to be first-run-or-expired-only.
 
 Changed:
 

@@ -55,13 +55,19 @@ Use this skill for user requests like:
 
 All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
 
+**This is a separate Chrome window from any browser the user already has open.** The script always launches its own profile with remote-debugging enabled; cookies from the user's regular Chrome are not read. The user logs in inside the window the script opens; that session is then reused by every Atlassian skill until it expires.
+
+**Reuse signal.** When attaching to an existing session, the script prints `Reusing Chrome DevTools on port 9223` and (if the target tab is open) `Found existing tab for <host>`. When you see those lines, do not ask the user to re-SSO — the session is already valid.
+
+If Chrome/Chromium is installed via Flatpak, Snap, or another non-PATH location, set `CHROME=/path/to/launcher` (or a wrapper script) so the script can find the binary.
+
 Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
 
 ## Typical Workflow
 
 1. Identify raw directory.
 2. Run the script and show the command first.
-3. If Chrome opens, ask the user to complete SSO in that browser window.
+3. If Chrome opens (first run or expired session), ask the user to complete SSO in that window. On subsequent invocations the script reuses the session silently — see the Reuse signal above.
 4. Verify saved files.
 
 Example:
