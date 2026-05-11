@@ -103,8 +103,8 @@ The Markdown converter is intentionally simple: headings, paragraphs, unordered/
 |---|---|
 | `CONFLUENCE_SITE` | Default Atlassian site, e.g. `https://example.atlassian.net` |
 | `CONFLUENCE_UPDATE_RAW_DIR` / `CONFLUENCE_RAW_DIR` | Audit/output raw directory |
-| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9224`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
-| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for Jira/Confluence tools. If only `ATLASSIAN_CHROME_PROFILE` is set, Confluence update defaults to shared port `9223`. |
+| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9223`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
+| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for all Atlassian browser skills (Jira/Confluence/Bitbucket). Default `9223`. |
 | `CONFLUENCE_UPDATE_WAIT_SEC` / `CONFLUENCE_FETCH_WAIT_SEC` | Wait timeout, default `900` |
 | `CONFLUENCE_CHROME_PROFILE` | Dedicated Chrome profile dir; overrides `ATLASSIAN_CHROME_PROFILE`. By default this uses the same profile as `confluence-browser-fetch`. |
 | `ATLASSIAN_CHROME_PROFILE` | Shared browser profile dir for Jira, Confluence fetch, and Confluence update tools |

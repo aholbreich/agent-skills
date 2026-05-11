@@ -65,3 +65,11 @@ test('bitbucket CLI fails fast when project URL is missing', () => {
   assert.equal(result.status, 2);
   assert.match(result.stdout, /Usage: bitbucket-browser-fetch/);
 });
+
+test('bitbucket --help advertises unified defaults', () => {
+  const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /9223/);
+  assert.match(result.stdout, /atlassian-browser-chrome/);
+  assert.doesNotMatch(result.stdout, /9224|bitbucket-browser-fetch-chrome/);
+});

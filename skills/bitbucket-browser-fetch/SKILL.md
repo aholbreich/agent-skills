@@ -36,6 +36,14 @@ Important options:
 --profile-dir DIR  Chrome profile dir
 ```
 
+## Shared Atlassian SSO Session
+
+All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
+
+Bitbucket sits on `bitbucket.org` rather than `*.atlassian.net`, so its cookies are scoped separately, but sharing one Chrome profile/port still avoids spawning extra browser windows.
+
+Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
+
 ## Example
 
 ```bash

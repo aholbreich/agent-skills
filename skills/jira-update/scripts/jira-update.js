@@ -13,8 +13,8 @@ const COMMON_OPTIONS = `Common options:
   --apply               Actually write to Jira (without it, dry-run only)
   --message TEXT        Annotate the local audit record
   --wait SEC            Wait time for SSO/session (default: 900)
-  --port PORT           Chrome DevTools port (default: 9225 or ATLASSIAN_CHROME_DEBUG_PORT)
-  --profile-dir DIR     Chrome profile dir`;
+  --port PORT           Chrome DevTools port (default: JIRA_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9223)
+  --profile-dir DIR     Chrome profile dir (default: JIRA_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/atlassian-browser-chrome)`;
 
 function topUsage() {
   console.log(`Usage: jira-update <command> [options]
@@ -119,9 +119,9 @@ const opts = {
   issueKey: '',
   server: process.env.JIRA_SERVER || '',
   rawDir: process.env.JIRA_UPDATE_RAW_DIR || process.env.JIRA_RAW_DIR || path.resolve(process.cwd(), 'raw'),
-  port: Number(process.env.JIRA_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9225),
+  port: Number(process.env.JIRA_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9223),
   waitSec: Number(process.env.JIRA_UPDATE_WAIT_SEC || 900),
-  profileDir: process.env.JIRA_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/jira-browser-fetch-chrome'),
+  profileDir: process.env.JIRA_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/atlassian-browser-chrome'),
   file: '',
   representation: 'markdown',
   apply: false,

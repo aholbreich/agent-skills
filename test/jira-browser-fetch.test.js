@@ -152,6 +152,14 @@ test('jira CLI fails fast when server is missing', () => {
   assert.match(result.stderr, /Missing Jira server/);
 });
 
+test('jira-browser-fetch --help advertises unified defaults', () => {
+  const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /9223/);
+  assert.match(result.stdout, /atlassian-browser-chrome/);
+  assert.doesNotMatch(result.stdout, /jira-browser-fetch-chrome/);
+});
+
 test('jira distribution.md lists every script in the layout diagram', async () => {
   const distPath = path.join(repoRoot, 'skills/jira-browser-fetch/references/distribution.md');
   const dist = await fsp.readFile(distPath, 'utf8');

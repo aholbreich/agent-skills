@@ -25,8 +25,8 @@ Options:
   --raw-dir DIR             Output raw directory (default: BITBUCKET_RAW_DIR or ./raw)
   --pagelen N               Internal API page size (default: 100)
   --wait SEC                Wait time for login/session (default: 900)
-  --port PORT               Chrome DevTools port (default: BITBUCKET_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9224)
-  --profile-dir DIR         Chrome profile dir (default: BITBUCKET_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/bitbucket-browser-fetch-chrome)
+  --port PORT               Chrome DevTools port (default: BITBUCKET_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9223)
+  --profile-dir DIR         Chrome profile dir (default: BITBUCKET_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/atlassian-browser-chrome)
   --help                    Show this help
 
 Examples:
@@ -39,9 +39,9 @@ const opts = {
   workspace: '',
   projectKey: '',
   rawDir: process.env.BITBUCKET_RAW_DIR || path.resolve(process.cwd(), 'raw'),
-  port: Number(process.env.BITBUCKET_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9224),
+  port: Number(process.env.BITBUCKET_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9223),
   waitSec: Number(process.env.BITBUCKET_FETCH_WAIT_SEC || 900),
-  profileDir: process.env.BITBUCKET_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/bitbucket-browser-fetch-chrome'),
+  profileDir: process.env.BITBUCKET_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/atlassian-browser-chrome'),
   pagelen: Number(process.env.BITBUCKET_PAGELEN || 100),
 };
 

@@ -86,3 +86,21 @@ test('confluence-update CLI fails fast when site is missing', () => {
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Missing Atlassian site/);
 });
+
+test('confluence-update CLI strips trailing /wiki from --site and warns', () => {
+  const result = spawnSync(process.execPath, [script, 'update', '123456', '--site', 'https://example.atlassian.net/wiki'], {
+    encoding: 'utf8',
+    env: { ...process.env, CONFLUENCE_SITE: '' },
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /stripping trailing \/wiki from --site/);
+  assert.match(result.stderr, /Missing --file input/);
+});
+
+test('confluence-update --help advertises unified defaults', () => {
+  const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /9223/);
+  assert.match(result.stdout, /atlassian-browser-chrome/);
+  assert.doesNotMatch(result.stdout, /9224|confluence-browser-fetch-chrome/);
+});

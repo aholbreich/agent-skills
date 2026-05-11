@@ -49,6 +49,12 @@ Important options:
 --parent-id ID          parent page for create
 ```
 
+## Shared Atlassian SSO Session
+
+All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
+
+Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
+
 ## Typical Workflow
 
 1. Prefer `replace-block` when editing an agent-owned region.
@@ -57,7 +63,6 @@ Important options:
 4. Ask the user for approval.
 5. Re-run the same command with `--apply`.
 6. If Chrome opens, ask the user to complete SSO.
-7. To share one Atlassian SSO login with Jira/Confluence fetchers, use `ATLASSIAN_CHROME_PROFILE` plus `ATLASSIAN_CHROME_DEBUG_PORT`.
 
 ## Agent-owned blocks
 

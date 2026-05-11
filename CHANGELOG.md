@@ -2,9 +2,20 @@
 
 ## Unreleased
 
+Added:
+
+- `jira-browser-fetch --skip-existing` skips issues that already have a valid `raw/<KEY>/issue.json`, reading the saved `connected-keys.json` so `--connected --scan-text` traversal still resumes correctly.
+- `jira-browser-fetch` prints aggregate progress (`[N/total] pct%`) and a trailing ETA line during multi-issue runs.
+
 Changed:
 
+- **Unified Chrome profile and DevTools port across all five Atlassian skills.** Defaults are now `~/.local/share/atlassian-browser-chrome` and port `9223` for `jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, and `bitbucket-browser-fetch`. One SSO login persists across all skills — no env vars required. Skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars still override for isolation. Each SKILL.md gains a "Shared Atlassian SSO Session" section near the top.
+- `confluence-update` and `confluence-browser-fetch` now strip a trailing `/wiki` from `--site` (or `CONFLUENCE_SITE`) with a stderr note, instead of building the unreachable `…/wiki/wiki` URL.
 - Replaced the 19-step `npm run check` chain with a `bin/check.js` script that auto-discovers `bin/`, `lib/`, and every `skills/*/scripts/` JS file. Aggregates failures (no longer stops at the first error) and prints a summary line. New skills/scripts are picked up automatically with no `package.json` edit.
+
+Migration:
+
+- Users who previously logged in via the old per-skill profiles (`~/.local/share/jira-browser-fetch-chrome`, `confluence-browser-fetch-chrome`, `bitbucket-browser-fetch-chrome`) will hit a fresh login on first run after upgrade. To preserve the existing session, move whichever profile you used: `mv ~/.local/share/jira-browser-fetch-chrome ~/.local/share/atlassian-browser-chrome` (only one — pick the one with your live cookies). Or just re-SSO once; the new shared profile then serves all five skills.
 
 ## 1.0.1 - 2026-05-09
 

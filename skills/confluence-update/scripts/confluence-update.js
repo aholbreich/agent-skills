@@ -27,8 +27,8 @@ const COMMON_OPTIONS = `Common options:
   --expected-version N|auto    Fail if current page version is not N. Use 'auto' to always overwrite (default: null)
   --apply                      Actually write. Without this, only dry-run/audit files are written
   --wait SEC                   Wait time for SSO/session (default: 900)
-  --port PORT                  Chrome DevTools port (default: CONFLUENCE_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9224)
-  --profile-dir DIR            Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/confluence-browser-fetch-chrome)`;
+  --port PORT                  Chrome DevTools port (default: CONFLUENCE_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9223)
+  --profile-dir DIR            Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/atlassian-browser-chrome)`;
 
 function usage() {
   console.log(`Usage: confluence-update <command> [options]
@@ -138,9 +138,9 @@ const opts = {
   pageInput: '',
   site: process.env.CONFLUENCE_SITE || '',
   rawDir: process.env.CONFLUENCE_UPDATE_RAW_DIR || process.env.CONFLUENCE_RAW_DIR || path.resolve(process.cwd(), 'raw'),
-  port: Number(process.env.CONFLUENCE_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || (process.env.ATLASSIAN_CHROME_PROFILE ? 9223 : 9224)),
+  port: Number(process.env.CONFLUENCE_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9223),
   waitSec: Number(process.env.CONFLUENCE_UPDATE_WAIT_SEC || process.env.CONFLUENCE_FETCH_WAIT_SEC || 900),
-  profileDir: process.env.CONFLUENCE_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/confluence-browser-fetch-chrome'),
+  profileDir: process.env.CONFLUENCE_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/atlassian-browser-chrome'),
   file: '',
   representation: 'storage',
   title: '',
@@ -199,6 +199,11 @@ for (let i = 0; i < args.length; i++) {
 }
 
 opts.site = opts.site.replace(/\/$/, '');
+if (/\/wiki$/i.test(opts.site)) {
+  const stripped = opts.site.replace(/\/wiki$/i, '');
+  console.error(`Note: stripping trailing /wiki from --site (${opts.site} -> ${stripped}). Pass the site root, e.g. https://example.atlassian.net.`);
+  opts.site = stripped;
+}
 opts.rawDir = path.resolve(opts.rawDir);
 const wikiBase = opts.site ? `${opts.site}/wiki` : '';
 

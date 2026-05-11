@@ -45,7 +45,7 @@ Common options:
 --apply                   Actually write. Without this, only dry-run/audit files are written
 --message TEXT            Annotate the local audit record (not sent to Jira)
 --wait SEC                Wait time for SSO/session (default: 900)
---port PORT               Chrome DevTools port (default: 9225 or ATLASSIAN_CHROME_DEBUG_PORT)
+--port PORT               Chrome DevTools port (default: ATLASSIAN_CHROME_DEBUG_PORT, or 9223)
 --profile-dir DIR         Chrome profile dir
 ```
 
@@ -56,13 +56,18 @@ transition: --to NAME | --to-id ID, --comment-file FILE, --field key=value (repe
 link:       --to ISSUE-KEY, --type "blocks" | "relates" | etc.
 ```
 
+## Shared Atlassian SSO Session
+
+All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
+
+Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
+
 ## Typical Workflow
 
 1. Run without `--apply` first.
 2. Review files in `raw/jira-updates/<command>-<key|new>-<timestamp>/`.
 3. Ask the user for approval.
 4. Re-run the same command with `--apply`.
-5. To share one Atlassian SSO login with the fetchers, set `ATLASSIAN_CHROME_PROFILE` and `ATLASSIAN_CHROME_DEBUG_PORT`.
 
 ## Examples
 

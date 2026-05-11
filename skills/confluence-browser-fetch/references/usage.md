@@ -106,8 +106,8 @@ By default, pages with matching local `metadata.json` Confluence `version.number
 |---|---|
 | `CONFLUENCE_SITE` | Default Atlassian site, e.g. `https://example.atlassian.net` |
 | `CONFLUENCE_RAW_DIR` | Default output raw directory |
-| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9224`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
-| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for Jira and Confluence browser fetchers. If only `ATLASSIAN_CHROME_PROFILE` is set, Confluence defaults to shared port `9223`. |
+| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9223`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
+| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for all Atlassian browser skills (Jira/Confluence/Bitbucket). Default `9223`. |
 | `CONFLUENCE_FETCH_WAIT_SEC` | Wait timeout, default `900` |
 | `CONFLUENCE_MAX_SEARCH_RESULTS` | Max CQL pages, default `200` |
 | `CONFLUENCE_MAX_ATTACHMENT_SIZE` / `CONFLUENCE_MAX_ATTACHMENT_BYTES` | Max attachment download size, default `5mb`; skipped files are listed in `attachments.json` |

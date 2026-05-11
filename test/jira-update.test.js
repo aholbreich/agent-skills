@@ -239,6 +239,14 @@ test('jira-update CLI --help exits 0 and prints usage', () => {
   assert.match(result.stdout, /create\s+/);
 });
 
+test('jira-update --help advertises unified defaults', () => {
+  const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /9223/);
+  assert.match(result.stdout, /atlassian-browser-chrome/);
+  assert.doesNotMatch(result.stdout, /9225|jira-browser-fetch-chrome/);
+});
+
 test('jira-update CLI per-command --help exits 0 and prints command-specific section', () => {
   for (const cmd of ['create', 'comment', 'transition', 'update-fields', 'link']) {
     const result = spawnSync(process.execPath, [script, cmd, '--help'], { encoding: 'utf8' });

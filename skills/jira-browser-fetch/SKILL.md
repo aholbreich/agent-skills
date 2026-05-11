@@ -51,13 +51,18 @@ Use this skill for user requests like:
 - "Pull my assigned Jira issues without asking me for an API token."
 - "Fetch this ticket and all linked tickets, including attachments under the default size limit."
 
+## Shared Atlassian SSO Session
+
+All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
+
+Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
+
 ## Typical Workflow
 
 1. Identify raw directory.
 2. Run the script and show the command first.
 3. If Chrome opens, ask the user to complete SSO in that browser window.
-4. To share one Atlassian SSO login with `confluence-browser-fetch`, use `ATLASSIAN_CHROME_PROFILE` plus `ATLASSIAN_CHROME_DEBUG_PORT` (or matching `--profile-dir` and `--port`) for both tools.
-5. Verify saved files.
+4. Verify saved files.
 
 Example:
 

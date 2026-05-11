@@ -43,15 +43,20 @@ Important options:
 --no-browser-html        skip rendered browser HTML
 ```
 
+## Shared Atlassian SSO Session
+
+All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
+
+Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
+
 ## Typical Workflow
 
 1. If the user gives a Confluence URL, run the script directly with that URL.
 2. If the user gives a title, ask for the space key or use `--cql`.
 3. Show the command before running it.
 4. If Chrome opens, ask the user to complete SSO in that browser window.
-5. To share one Atlassian SSO login with `jira-browser-fetch`, use `ATLASSIAN_CHROME_PROFILE` plus `ATLASSIAN_CHROME_DEBUG_PORT` (or matching `--profile-dir` and `--port`) for both tools.
-6. Verify saved files.
-7. If this is an LLM wiki ingest, process the saved `raw/confluence/...` material into `wiki/` per the project `AGENTS.md`.
+5. Verify saved files.
+6. If this is an LLM wiki ingest, process the saved `raw/confluence/...` material into `wiki/` per the project `AGENTS.md`.
 
 Example:
 

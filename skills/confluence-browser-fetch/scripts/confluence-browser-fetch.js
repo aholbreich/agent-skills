@@ -29,8 +29,8 @@ Options:
   --retries N              HTTP retry count for transient failures (default: 3)
   --request-timeout SEC    Per-request timeout (default: 60)
   --wait SEC               Wait time for SSO/session (default: 900)
-  --port PORT              Chrome DevTools port (default: CONFLUENCE_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9224)
-  --profile-dir DIR        Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/confluence-browser-fetch-chrome)
+  --port PORT              Chrome DevTools port (default: CONFLUENCE_CHROME_DEBUG_PORT, ATLASSIAN_CHROME_DEBUG_PORT, or 9223)
+  --profile-dir DIR        Chrome profile dir (default: CONFLUENCE_CHROME_PROFILE, ATLASSIAN_CHROME_PROFILE, or ~/.local/share/atlassian-browser-chrome)
   --help                   Show this help
 
 Examples:
@@ -45,9 +45,9 @@ Examples:
 const opts = {
   site: process.env.CONFLUENCE_SITE || '',
   rawDir: process.env.CONFLUENCE_RAW_DIR || path.resolve(process.cwd(), 'raw'),
-  port: Number(process.env.CONFLUENCE_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || (process.env.ATLASSIAN_CHROME_PROFILE ? 9223 : 9224)),
+  port: Number(process.env.CONFLUENCE_CHROME_DEBUG_PORT || process.env.ATLASSIAN_CHROME_DEBUG_PORT || 9223),
   waitSec: Number(process.env.CONFLUENCE_FETCH_WAIT_SEC || 900),
-  profileDir: process.env.CONFLUENCE_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/confluence-browser-fetch-chrome'),
+  profileDir: process.env.CONFLUENCE_CHROME_PROFILE || process.env.ATLASSIAN_CHROME_PROFILE || path.join(os.homedir(), '.local/share/atlassian-browser-chrome'),
   maxSearchResults: Number(process.env.CONFLUENCE_MAX_SEARCH_RESULTS || 200),
   retries: Number(process.env.CONFLUENCE_RETRIES || 3),
   requestTimeoutSec: Number(process.env.CONFLUENCE_REQUEST_TIMEOUT_SEC || 60),
@@ -89,6 +89,11 @@ for (let i = 2; i < process.argv.length; i++) {
 
 if (!inputs.length && !opts.titles.length && !opts.cqls.length) { usage(); process.exit(2); }
 opts.site = opts.site.replace(/\/$/, '');
+if (/\/wiki$/i.test(opts.site)) {
+  const stripped = opts.site.replace(/\/wiki$/i, '');
+  console.error(`Note: stripping trailing /wiki from --site (${opts.site} -> ${stripped}). Pass the site root, e.g. https://example.atlassian.net.`);
+  opts.site = stripped;
+}
 if (!opts.site) {
   console.error('Missing Atlassian site. Pass --site https://example.atlassian.net or set CONFLUENCE_SITE.');
   process.exit(2);

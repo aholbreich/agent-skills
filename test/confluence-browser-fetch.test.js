@@ -79,3 +79,11 @@ test('confluence CLI fails fast when site is missing', () => {
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Missing Atlassian site/);
 });
+
+test('confluence-browser-fetch --help advertises unified defaults', () => {
+  const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /9223/);
+  assert.match(result.stdout, /atlassian-browser-chrome/);
+  assert.doesNotMatch(result.stdout, /9224|confluence-browser-fetch-chrome/);
+});
