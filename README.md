@@ -14,6 +14,12 @@ Beyond the SSO bypass, the skills are built around three differentiators:
 - **Markdown → ADF conversion.** `jira-update` converts Markdown to Atlassian Document Format (Jira Cloud's structured rich-text representation), so agents write descriptions, comments, and transitions in a familiar format without hand-rolling ADF JSON.
 - **Shared browser session.** All Atlassian skills can reuse a single Chrome profile + DevTools port, so you log in once and every fetch/update skill rides the same SSO session.
 
+## Project status
+
+Opinionated bundle: SSO browser-session auth only, no API tokens or app passwords. The whole stack is built around extracting Chrome cookies via the DevTools Protocol — if API tokens already work for your org, you do not need this. All five Atlassian skills share one Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`) by default; log in once and the others reuse the session.
+
+**Tested on Linux (Fedora) at the moment.** macOS browser paths exist in the auto-detection logic but are not end-to-end verified; Windows is unsupported. Reports of what works on other distros or OSes are very welcome — open an issue or PR at [github.com/aholbreich/agent-skills/issues](https://github.com/aholbreich/agent-skills/issues). Feedback on SSO flavors, browser detection, profile/port collisions, and unusual Atlassian tenant shapes is especially useful.
+
 ## Skills
 
 | Skill | Purpose |
@@ -199,14 +205,16 @@ bitbucket-browser-fetch
 
 ## Reuse one Atlassian browser login
 
-To avoid separate Jira and Confluence SSO prompts, use one shared automation profile and DevTools port for both fetchers:
+All five skills share one Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`) by default. Log in once via any skill and the others ride the same SSO session — no env vars required.
+
+To relocate the shared profile or run on a different port:
 
 ```bash
-export ATLASSIAN_CHROME_PROFILE="$HOME/.local/share/atlassian-browser-fetch-chrome"
-export ATLASSIAN_CHROME_DEBUG_PORT=9223
+export ATLASSIAN_CHROME_PROFILE="$HOME/some/other/path"
+export ATLASSIAN_CHROME_DEBUG_PORT=9333
 ```
 
-Skill-specific variables such as `JIRA_CHROME_PROFILE`, `CONFLUENCE_CHROME_PROFILE`, or `BITBUCKET_CHROME_PROFILE` still override the shared profile when needed.
+Skill-specific variables (`JIRA_CHROME_PROFILE`, `CONFLUENCE_CHROME_PROFILE`, `BITBUCKET_CHROME_PROFILE`, and the matching `*_CHROME_DEBUG_PORT`) override the shared values when you intentionally want skill isolation.
 
 ## Bitbucket examples
 

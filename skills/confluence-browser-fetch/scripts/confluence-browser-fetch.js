@@ -183,7 +183,14 @@ async function verifyConfluenceSession(cookie) {
     return { ok: false, message: `session probe HTTP ${result.status} from ${url}` };
   }
 
-  return { ok: false, message: 'could not verify Confluence session' };
+  try {
+    const sanity = await fetchJson(`${opts.site}/rest/api/3/myself`, cookie);
+    if (sanity.status === 200 && sanity.json && (sanity.json.accountId || sanity.json.displayName)) {
+      return { ok: false, message: `cookies are valid for ${opts.site} (Jira API responded) but Confluence at ${wikiBase} returned 404. Verify --site is the Atlassian site root (e.g. https://example.atlassian.net, without /wiki) and that Confluence is enabled on this tenant.` };
+    }
+  } catch {}
+
+  return { ok: false, message: `could not verify Confluence session at ${wikiBase}. Verify --site is the Atlassian site root (e.g. https://example.atlassian.net, without /wiki).` };
 }
 
 function getCookieWithWait(openUrl) {
