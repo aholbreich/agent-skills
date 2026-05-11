@@ -6,11 +6,15 @@ This skill follows Pi / Agent Skills layout:
 jira-browser-fetch/
 ├── SKILL.md
 ├── scripts/
-│   └── jira-browser-fetch.js
+│   ├── atlassian-browser.js   # vendored from lib/atlassian-browser.js
+│   ├── jira-browser-fetch.js
+│   └── lib.js
 └── references/
     ├── usage.md
     └── distribution.md
 ```
+
+`scripts/atlassian-browser.js` is vendored from `lib/atlassian-browser.js` at the repo root by `bin/vendor.js` (run via `npm run vendor`, and automatically before `npm test` and `npm pack`). The skill folder is self-contained, so copying just the `jira-browser-fetch/` directory works once vendoring has happened. If you hand-copy from a fresh source checkout, run `npm run vendor` first or include all three files in `scripts/`.
 
 ## Install for Current User
 

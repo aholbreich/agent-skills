@@ -13,6 +13,8 @@ const {
   parseBacklogInput,
   backlogApiUrl,
   issueKeysFromAgilePage,
+  readExistingIssueJson,
+  formatEta,
 } = require('./lib');
 
 function usage() {
@@ -39,6 +41,8 @@ Options:
   --no-attachments         Do not download Jira attachments
   --no-html                Do not save browser HTML
   --no-xml                 Do not save Jira XML issue view
+  --skip-existing          Skip issues that already have a valid raw/<KEY>/issue.json
+                           (still extracts connected keys for depth traversal)
   --help                   Show this help
 
 Examples:
@@ -68,6 +72,7 @@ const opts = {
   attachments: true,
   html: true,
   xml: true,
+  skipExisting: false,
 };
 const issues = [];
 
@@ -91,6 +96,7 @@ for (let i = 2; i < process.argv.length; i++) {
   else if (a === '--no-attachments') opts.attachments = false;
   else if (a === '--no-html') opts.html = false;
   else if (a === '--no-xml') opts.xml = false;
+  else if (a === '--skip-existing') opts.skipExisting = true;
   else if (!a.startsWith('-')) issues.push(a.toUpperCase());
   else { console.error(`Unknown argument: ${a}`); process.exit(2); }
 }
@@ -347,6 +353,19 @@ async function downloadAttachments(issueJson, cookie, outDir) {
 
 async function fetchIssue(issue) {
   const outDir = path.join(opts.rawDir, issue);
+
+  if (opts.skipExisting) {
+    const existing = await readExistingIssueJson(outDir, issue);
+    if (existing) {
+      console.log(`Skipping ${issue} (already fetched: ${outDir})`);
+      try {
+        const saved = JSON.parse(await fsp.readFile(path.join(outDir, 'connected-keys.json'), 'utf8'));
+        if (Array.isArray(saved)) return saved;
+      } catch {}
+      return extractConnectedKeys(existing, []);
+    }
+  }
+
   await fsp.mkdir(outDir, { recursive: true });
 
   const browseUrl = `${opts.server}/browse/${issue}`;
@@ -448,11 +467,14 @@ async function main() {
     }
   }
 
+  const fetchStart = Date.now();
+  let processed = 0;
   for (let idx = 0; idx < queue.length; idx++) {
     const item = queue[idx];
     if (seen.has(item.key)) continue;
     seen.add(item.key);
-    console.log(`\n===== Fetching ${item.key}${item.from ? ` (referenced by ${item.from})` : ''} =====`);
+    const pct = ((idx + 1) / queue.length * 100).toFixed(0);
+    console.log(`\n===== [${idx + 1}/${queue.length}] ${pct}% Fetching ${item.key}${item.from ? ` (referenced by ${item.from})` : ''} =====`);
     try {
       const connected = await fetchIssue(item.key);
       if (opts.connected && item.depth < opts.depth) {
@@ -463,6 +485,13 @@ async function main() {
     } catch (e) {
       failed.push({ key: item.key, error: e.message });
       console.error(`SKIPPED/FAILED ${item.key}: ${e.message}`);
+    }
+    processed++;
+    const remaining = queue.length - (idx + 1);
+    if (queue.length > 1 && remaining > 0) {
+      const elapsed = (Date.now() - fetchStart) / 1000;
+      const eta = elapsed / processed * remaining;
+      console.log(`Progress: ${idx + 1}/${queue.length} done, ${remaining} remaining, elapsed ${formatEta(elapsed)}, ETA ${formatEta(eta)}`);
     }
   }
 

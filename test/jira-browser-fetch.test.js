@@ -3,6 +3,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { spawnSync } = require('node:child_process');
+const fsp = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -84,6 +86,61 @@ test('jira CLI --help exits successfully without browser', () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Usage: jira-browser-fetch/);
   assert.match(result.stdout, /--backlog URL\|BOARD_ID/);
+  assert.match(result.stdout, /--skip-existing/);
+});
+
+test('jira readExistingIssueJson returns parsed issue when present and matches key', async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), 'jbf-skip-'));
+  try {
+    const outDir = path.join(tmp, 'PROJ-1');
+    await fsp.mkdir(outDir, { recursive: true });
+    await fsp.writeFile(path.join(outDir, 'issue.json'), JSON.stringify({ key: 'PROJ-1', fields: { summary: 'x' } }));
+    const parsed = await lib.readExistingIssueJson(outDir, 'PROJ-1');
+    assert.equal(parsed && parsed.key, 'PROJ-1');
+  } finally {
+    await fsp.rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('jira readExistingIssueJson is a no-op when fields-only data is missing', async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), 'jbf-skip-'));
+  try {
+    const outDir = path.join(tmp, 'PROJ-1');
+    await fsp.mkdir(outDir, { recursive: true });
+    await fsp.writeFile(path.join(outDir, 'issue.json'), JSON.stringify({ key: 'PROJ-1' }));
+    const parsed = await lib.readExistingIssueJson(outDir, 'PROJ-1');
+    assert.equal(parsed && parsed.key, 'PROJ-1');
+  } finally {
+    await fsp.rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('jira readExistingIssueJson returns null on missing/corrupt/mismatched files', async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), 'jbf-skip-'));
+  try {
+    const outDir = path.join(tmp, 'PROJ-1');
+    await fsp.mkdir(outDir, { recursive: true });
+
+    assert.equal(await lib.readExistingIssueJson(outDir, 'PROJ-1'), null);
+
+    await fsp.writeFile(path.join(outDir, 'issue.json'), '{not json');
+    assert.equal(await lib.readExistingIssueJson(outDir, 'PROJ-1'), null);
+
+    await fsp.writeFile(path.join(outDir, 'issue.json'), JSON.stringify({ key: 'OTHER-9' }));
+    assert.equal(await lib.readExistingIssueJson(outDir, 'PROJ-1'), null);
+  } finally {
+    await fsp.rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('jira formatEta renders human-friendly durations', () => {
+  assert.equal(lib.formatEta(0), '0s');
+  assert.equal(lib.formatEta(-3), '0s');
+  assert.equal(lib.formatEta(45), '45s');
+  assert.equal(lib.formatEta(60), '1m');
+  assert.equal(lib.formatEta(125), '2m5s');
+  assert.equal(lib.formatEta(3600), '1h');
+  assert.equal(lib.formatEta(3725), '1h2m');
 });
 
 test('jira CLI fails fast when server is missing', () => {
@@ -93,4 +150,13 @@ test('jira CLI fails fast when server is missing', () => {
   });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Missing Jira server/);
+});
+
+test('jira distribution.md lists every script in the layout diagram', async () => {
+  const distPath = path.join(repoRoot, 'skills/jira-browser-fetch/references/distribution.md');
+  const dist = await fsp.readFile(distPath, 'utf8');
+  for (const file of ['atlassian-browser.js', 'jira-browser-fetch.js', 'lib.js']) {
+    assert.match(dist, new RegExp(file.replace('.', '\\.')), `distribution.md should mention ${file}`);
+  }
+  assert.match(dist, /vendor/i, 'distribution.md should describe the vendoring mechanism');
 });

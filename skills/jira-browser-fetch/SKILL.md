@@ -38,6 +38,7 @@ Important options:
 --max-attachment-size S  skip attachment files larger than S (default 5mb; use unlimited to disable)
 --prefix A,B,C     only follow keys with these project prefixes
 --wait SEC         SSO/session wait timeout per issue
+--skip-existing    skip issues that already have a valid raw/<KEY>/issue.json
 ```
 
 ## Example User Requests
