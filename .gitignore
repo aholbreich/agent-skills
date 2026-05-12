@@ -35,9 +35,6 @@ jira-browser-fetch-chrome/
 .agents/
 skills-lock.json
 
-# Vendored shared libraries (source of truth lives in lib/atlassian-browser.js)
-skills/*/scripts/atlassian-browser.js
-
 # Local research / strategy artifacts (drafts, not shipped)
 deep-research-report.md
 *.research.md

@@ -4,7 +4,15 @@
 const fsp = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { createBrowserSession } = require('./atlassian-browser');
+let createBrowserSession;
+try {
+  ({ createBrowserSession } = require('./atlassian-browser'));
+} catch (e) {
+  if (e.code !== 'MODULE_NOT_FOUND') throw e;
+  console.error('scripts/atlassian-browser.js is missing — this skill install is incomplete.');
+  console.error('Reinstall: npx skills add aholbreich/agent-skills');
+  process.exit(1);
+}
 const lib = require('./lib');
 
 const COMMON_OPTIONS = `Common options:

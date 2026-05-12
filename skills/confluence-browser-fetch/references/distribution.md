@@ -14,7 +14,7 @@ confluence-browser-fetch/
     └── distribution.md
 ```
 
-`scripts/atlassian-browser.js` is vendored from `lib/atlassian-browser.js` at the repo root by `bin/vendor.js` (run via `npm run vendor`, and automatically before `npm test` and `npm pack`). The skill folder is self-contained, so copying just the `confluence-browser-fetch/` directory works once vendoring has happened. If you hand-copy from a fresh source checkout, run `npm run vendor` first or include all three files in `scripts/`.
+`scripts/atlassian-browser.js` is vendored from `lib/atlassian-browser.js` at the repo root and committed to git, so the skill folder is always self-contained — copying just the `confluence-browser-fetch/` directory works in any clone, GitHub tarball, or npm install. Run `npm run vendor` after editing `lib/atlassian-browser.js`; CI verifies the vendored copies match via `npm run vendor:check`.
 
 ## Install for Current User
 
