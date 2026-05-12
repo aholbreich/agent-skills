@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1 - 2026-05-12
+
+Fixed:
+
+- **Skills installed via the `skills.sh` CLI (`npx skills add aholbreich/agent-skills`) failed on first run** with `Cannot find module './atlassian-browser'`. That installer pulls the GitHub source, where the shared browser-session module was previously gitignored and only materialized by `npm run vendor` at pack time. The five vendored copies are now tracked in git so every install path (skills.sh, GitHub tarball, `git clone`, npm) lands a self-contained skill folder with no post-install step.
+
+Added:
+
+- `npm run vendor:check` (also wired into `npm run ci`) fails when any vendored `scripts/atlassian-browser.js` drifts from the `lib/atlassian-browser.js` source of truth, preventing silent divergence between the copies in git and the source module.
+- Each script's `require('./atlassian-browser')` is now wrapped in a try/catch that prints `scripts/atlassian-browser.js is missing — this skill install is incomplete. Reinstall: npx skills add aholbreich/agent-skills` instead of a raw Node loader stack trace if the file ever goes missing.
+
 ## 1.1.0 - 2026-05-11
 
 Added:
