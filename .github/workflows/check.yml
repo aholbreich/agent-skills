@@ -16,3 +16,29 @@ jobs:
         with:
           version: 10
       - run: pnpm run ci
+
+  windows-browser-runtime:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify vendored runtime and focused tests
+        run: |
+          npm run vendor:check
+          node --test test/browser-context.test.js test/confluence-browser-fetch.test.js test/vendor.test.js
+      - name: Parse Windows browser launcher
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'lib/launch-windows-browser.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }

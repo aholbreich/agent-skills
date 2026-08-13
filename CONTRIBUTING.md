@@ -8,6 +8,7 @@ Requirements:
 
 - Node.js 22+
 - Chrome/Chromium for manual end-to-end testing
+- For Windows/WSL Confluence testing: Windows Chrome/Edge and PowerShell interoperability
 - Pi if you want to test skill discovery
 
 Run checks and tests:
@@ -26,6 +27,9 @@ pnpm run ci
 - Do not commit fetched `raw/` data, browser profiles, cookies, tokens, customer data, or logs.
 - Keep scripts read-only unless the skill is explicitly meant to modify external systems.
 - Document safety assumptions in the skill and in `SECURITY.md` if relevant.
+- Keep shared-file consumers explicit in `bin/vendor.js`; run `npm run vendor` after changing a shared browser runtime.
+- Never add a private tenant hostname, page ID, SAML response, or customer-derived HTML/JSON fixture to tests or documentation.
+- Preserve the Confluence fetch transport's exact-origin, GET-only, bounded-response, no-cookie-export invariants.
 
 ## Testing browser fetchers
 
@@ -40,6 +44,8 @@ Use a test Atlassian site or non-confidential page/issue when possible.
   --site https://example.atlassian.net \
   --raw-dir ./raw-test
 ```
+
+For Confluence Server/Data Center and Windows/WSL architecture, see `skills/confluence-browser-fetch/references/development.md`. Use synthetic `example.com` fixtures in tests. Private pages may be used only for local end-to-end validation; write output under ignored `raw/` or outside the checkout and delete it after inspection.
 
 Then delete local test exports before committing.
 

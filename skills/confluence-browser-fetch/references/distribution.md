@@ -1,114 +1,89 @@
 # Distribution Guide
 
-This skill follows Pi / Agent Skills layout:
+This skill follows the Agent Skills layout and is self-contained after vendoring:
 
 ```text
 confluence-browser-fetch/
 ├── SKILL.md
 ├── scripts/
-│   ├── atlassian-browser.js   # vendored from lib/atlassian-browser.js
+│   ├── browser-context.js              # vendored from lib/
+│   ├── launch-windows-browser.ps1      # vendored from lib/
 │   ├── confluence-browser-fetch.js
+│   ├── confluence-deployment.js
 │   └── lib.js
 └── references/
     ├── usage.md
+    ├── development.md
     └── distribution.md
 ```
 
-`scripts/atlassian-browser.js` is vendored from `lib/atlassian-browser.js` at the repo root and committed to git, so the skill folder is always self-contained — copying just the `confluence-browser-fetch/` directory works in any clone, GitHub tarball, or npm install. Run `npm run vendor` after editing `lib/atlassian-browser.js`; CI verifies the vendored copies match via `npm run vendor:check`.
+The legacy `atlassian-browser.js` is neither imported nor packaged in this skill.
 
-## Install for Current User
+## Source development
 
-```bash
-mkdir -p ~/.pi/agent/skills
-cp -a confluence-browser-fetch ~/.pi/agent/skills/
+After editing either shared source:
+
+```text
+lib/browser-context.js
+lib/launch-windows-browser.ps1
 ```
 
-Pi discovers it automatically on next start.
+regenerate and verify the committed skill copies:
+
+```bash
+npm run vendor
+npm run vendor:check
+npm run ci
+```
+
+`bin/vendor.js` declares consumers explicitly. The browser-context runtime and PowerShell launcher are vendored only to this skill.
+
+## Recommended installation
+
+```bash
+npx skills add aholbreich/agent-skills -g --skill confluence-browser-fetch -y
+```
+
+Pi package:
+
+```bash
+pi install npm:@aholbreich/agent-skills
+```
+
+Fallback installer:
+
+```bash
+npx @aholbreich/agent-skills install --skill confluence-browser-fetch
+```
+
+## Manual installation
+
+```bash
+mkdir -p ~/.agents/skills
+cp -a skills/confluence-browser-fetch ~/.agents/skills/
+```
 
 Optional command symlink:
 
 ```bash
 mkdir -p ~/.local/bin
-ln -sf ~/.pi/agent/skills/confluence-browser-fetch/scripts/confluence-browser-fetch.js ~/.local/bin/confluence-browser-fetch
+ln -sf ~/.agents/skills/confluence-browser-fetch/scripts/confluence-browser-fetch.js ~/.local/bin/confluence-browser-fetch
 ```
 
-## Install in a Project Repository
+## Package requirements
 
-```bash
-mkdir -p .pi/skills
-cp -a confluence-browser-fetch .pi/skills/
-git add .pi/skills/confluence-browser-fetch
-git commit -m "Add Confluence browser fetch Pi skill"
-```
+- Node.js 22+.
+- Native Chromium, or Windows Chrome/Edge plus PowerShell interoperability under WSL.
+- All JavaScript and PowerShell files listed above.
+- Executable bit on `confluence-browser-fetch.js`.
 
-## Distribute as a Tarball
+No npm runtime dependency is required.
 
-From the parent directory:
+## Validation checklist
 
-```bash
-tar -czf confluence-browser-fetch-skill.tar.gz confluence-browser-fetch
-```
-
-Install from tarball:
-
-```bash
-mkdir -p ~/.pi/agent/skills
-tar -xzf confluence-browser-fetch-skill.tar.gz -C ~/.pi/agent/skills
-```
-
-## Distribute as a Git Repository
-
-Consumers can copy the skill:
-
-```bash
-git clone <repo-url>
-cp -a <repo>/confluence-browser-fetch ~/.pi/agent/skills/
-```
-
-or reference a checkout in Pi settings:
-
-```json
-{
-  "skills": ["/path/to/repo/confluence-browser-fetch"]
-}
-```
-
-## npm/package.json Distribution
-
-Pi can discover package skills from `skills/` directories or `pi.skills` entries in `package.json`.
-
-Example package layout:
-
-```text
-my-pi-skills/
-├── package.json
-└── skills/
-    └── confluence-browser-fetch/
-        ├── SKILL.md
-        ├── scripts/confluence-browser-fetch.js
-        └── references/
-```
-
-Minimal package metadata:
-
-```json
-{
-  "name": "my-pi-skills",
-  "version": "1.0.0",
-  "private": true,
-  "pi": {
-    "skills": ["skills/confluence-browser-fetch"]
-  }
-}
-```
-
-## Validation Checklist
-
-- Directory name matches frontmatter name: `confluence-browser-fetch`.
-- `SKILL.md` has `name` and `description`.
-- No cookies, API tokens, or secrets are committed.
-- Script is executable:
-
-```bash
-chmod +x scripts/confluence-browser-fetch.js
-```
+- Directory and frontmatter name both equal `confluence-browser-fetch`.
+- `npm run vendor:check` passes.
+- `node --check` passes for all JavaScript.
+- Unit tests and `npm pack --dry-run` pass.
+- Packed skill includes `browser-context.js` and `launch-windows-browser.ps1`.
+- No raw output, browser profile, cookie, SAML value, token, private host, or customer fixture is included.

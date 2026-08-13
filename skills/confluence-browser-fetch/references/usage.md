@@ -1,177 +1,303 @@
 # Confluence Browser Fetch Usage
 
-## Why Browser Fetch?
+## Authentication model
 
-Confluence Cloud pages are often behind Microsoft/SSO. API-token Basic auth may be disabled or inconvenient. Browser fetch works by:
+The fetcher uses an authenticated browser when API tokens are unavailable or SSO/device policy requires an interactive browser:
 
-1. Launching Chrome with a dedicated user profile.
-2. Letting the user complete normal SSO.
-3. Reading Atlassian cookies through local Chrome DevTools.
-4. Verifying those cookies represent an authenticated Confluence REST session.
-5. Calling Confluence REST endpoints with those cookies.
+1. Launch or reuse a dedicated Chromium profile.
+2. Complete normal SSO/MFA in that browser when prompted.
+3. Select a tab whose exact origin matches the configured Confluence origin.
+4. Execute same-origin read-only `fetch()` requests in the page context.
+5. Return response data—not browser credentials—to Node for storage.
 
-No cookie or API token needs to be pasted into chat.
+The Confluence fetch path does not invoke CDP cookie/storage APIs and does not construct Cookie headers.
 
 ## Requirements
 
-- Node.js 22+.
-- A Chromium-compatible browser: Chrome, Chromium, Brave, Edge, or Vivaldi.
-- Access to the Confluence page with the logged-in account.
+- Node.js 22+ with built-in `fetch` and `WebSocket`.
+- Confluence page access for the account used in the dedicated browser.
+- One browser backend:
+  - `native`: a Chromium-compatible browser on Linux/macOS; or
+  - `windows-wsl`: Windows Chrome/Edge plus WSL PowerShell interoperability and localhost connectivity.
 
-Check:
+Native check:
 
 ```bash
 node --version
-which google-chrome || which chromium || which chromium-browser || which brave-browser || which microsoft-edge
+which google-chrome || which chromium || which brave-browser || which microsoft-edge
 ```
 
-The script auto-detects common Chromium-compatible browsers. If yours has a different path:
+WSL check:
 
 ```bash
-CHROME=/path/to/chrome scripts/confluence-browser-fetch.js 123456
+powershell.exe -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+wslinfo --networking-mode
 ```
 
-## Common Commands
+## Cloud, Server/Data Center, and context paths
 
-Fetch one page by URL:
+### Cloud
 
 ```bash
-scripts/confluence-browser-fetch.js \
+confluence-browser-fetch \
   'https://example.atlassian.net/wiki/spaces/ABC/pages/123456/Page+Title' \
-  --site https://example.atlassian.net \
-  --raw-dir /path/to/wiki/raw
+  --raw-dir ./raw
 ```
 
-Fetch one page by page ID:
+The fetcher infers:
 
-```bash
-scripts/confluence-browser-fetch.js 123456 \
-  --site https://example.atlassian.net \
-  --raw-dir /path/to/wiki/raw
+```text
+origin:       https://example.atlassian.net
+context path: /wiki
+REST API:     https://example.atlassian.net/wiki/rest/api
 ```
 
-Fetch a page and descendants:
+### Server/Data Center at the root
 
 ```bash
-scripts/confluence-browser-fetch.js 123456 \
-  --site https://example.atlassian.net \
-  --raw-dir /path/to/wiki/raw \
-  --descendants
+confluence-browser-fetch \
+  'https://confluence.example.com/pages/releaseview.action?pageId=123456' \
+  --raw-dir ./raw
 ```
 
-Fetch by exact title in a space:
+Inferred:
+
+```text
+origin:       https://confluence.example.com
+context path: /
+REST API:     https://confluence.example.com/rest/api
+```
+
+### Custom context
 
 ```bash
-scripts/confluence-browser-fetch.js \
+confluence-browser-fetch 123456 \
+  --site https://intranet.example.com \
+  --context-path /confluence \
+  --raw-dir ./raw
+```
+
+Never mix page URLs from multiple origins in one invocation. The fetcher rejects them before browser launch.
+
+## Browser backends
+
+### Automatic selection
+
+```bash
+confluence-browser-fetch '<URL>' --browser-backend auto --raw-dir ./raw
+```
+
+`auto` selects:
+
+- `windows-wsl` when running under WSL and `powershell.exe` is available;
+- otherwise `native`.
+
+### Native
+
+```bash
+confluence-browser-fetch '<URL>' --browser-backend native --raw-dir ./raw
+```
+
+Default profile and port:
+
+```text
+~/.local/share/atlassian-browser-chrome
+9223
+```
+
+Set `CHROME=/path/to/browser` for nonstandard installations.
+
+### Windows Chrome/Edge from WSL
+
+```bash
+confluence-browser-fetch '<URL>' \
+  --browser-backend windows-wsl \
+  --browser chrome \
+  --raw-dir ./raw
+```
+
+Default Windows profile:
+
+```text
+%LOCALAPPDATA%\AgentSkillsBrowserProfiles\Atlassian
+```
+
+The PowerShell launcher:
+
+- binds CDP to Windows `127.0.0.1`;
+- creates a dedicated marked profile;
+- refuses a non-empty unmarked profile;
+- verifies browser, profile, and DevTools-port ownership before reuse or stop;
+- disables browser sync in the dedicated profile.
+
+`--profile-dir` must be a Windows path for this backend:
+
+```bash
+--profile-dir 'C:\Users\me\AppData\Local\AgentSkillsBrowserProfiles\Work'
+```
+
+Do not point it at an everyday browser profile.
+
+## Common acquisition commands
+
+One page:
+
+```bash
+confluence-browser-fetch '<URL>' --raw-dir ./raw
+```
+
+First privacy-conscious probe without attachments:
+
+```bash
+confluence-browser-fetch '<URL>' --no-attachments --raw-dir ./raw
+```
+
+Page and descendants:
+
+```bash
+confluence-browser-fetch '<URL>' --descendants --raw-dir ./raw
+```
+
+Exact title in a space:
+
+```bash
+confluence-browser-fetch \
   --site https://example.atlassian.net \
-  --raw-dir /path/to/wiki/raw \
   --space ABC \
-  --title 'Architecture Overview'
+  --title 'Architecture Overview' \
+  --raw-dir ./raw
 ```
 
-Fetch by CQL:
+CQL:
 
 ```bash
-scripts/confluence-browser-fetch.js \
+confluence-browser-fetch \
   --site https://example.atlassian.net \
-  --raw-dir /path/to/wiki/raw \
-  --cql 'space = ABC and type = page and text ~ "invoice"'
+  --cql 'space = ABC and type = page and text ~ "billing"' \
+  --max-search-results 50 \
+  --raw-dir ./raw
 ```
 
-Use shorter wait when already logged in:
+Force refresh:
 
 ```bash
-CONFLUENCE_FETCH_WAIT_SEC=15 scripts/confluence-browser-fetch.js 123456 --raw-dir ./raw
+confluence-browser-fetch '<URL>' --force --raw-dir ./raw
 ```
 
-Re-fetch everything even when versions match:
+By default, matching page ID, status, version number, and version timestamp are skipped.
+
+## Attachments
+
+The default maximum is `5mb`:
 
 ```bash
-scripts/confluence-browser-fetch.js 123456 --descendants --force --raw-dir ./raw
+--max-attachment-size 10mb
 ```
 
-Skip attachment downloads above a threshold while still recording references in `attachments.json`:
+Attachment metadata is listed before download. Files whose declared size exceeds the configured maximum are skipped. Files without a trustworthy declared size are streamed in the browser and cancelled once the bound is exceeded.
+
+A hard browser-transfer safety cap defaults to `100mb`, including when the legacy `unlimited` value is requested. Operators may lower or deliberately raise it:
 
 ```bash
-scripts/confluence-browser-fetch.js 123456 --descendants --raw-dir ./raw --max-attachment-size 10mb
+export CONFLUENCE_BROWSER_MAX_BINARY_SIZE=25mb
 ```
 
-Default max attachment download size is `5mb`. Use `--max-attachment-size unlimited` to download all attachments.
+Avoid `unlimited` for routine agent ingestion.
 
-By default, pages with matching local `metadata.json` Confluence `version.number` and `version.when` are skipped. This avoids re-downloading unchanged page HTML and attachments during large tree fetches.
-
-## Environment Variables
+## Environment variables
 
 | Variable | Meaning |
 |---|---|
-| `CONFLUENCE_SITE` | Default Atlassian site, e.g. `https://example.atlassian.net` |
-| `CONFLUENCE_RAW_DIR` | Default output raw directory |
-| `CONFLUENCE_CHROME_DEBUG_PORT` | Chrome DevTools port, default `9223`; overrides `ATLASSIAN_CHROME_DEBUG_PORT` |
-| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared Chrome DevTools port for all Atlassian browser skills (Jira/Confluence/Bitbucket). Default `9223`. |
-| `CONFLUENCE_FETCH_WAIT_SEC` | Wait timeout, default `900` |
-| `CONFLUENCE_MAX_SEARCH_RESULTS` | Max CQL pages, default `200` |
-| `CONFLUENCE_MAX_ATTACHMENT_SIZE` / `CONFLUENCE_MAX_ATTACHMENT_BYTES` | Max attachment download size, default `5mb`; skipped files are listed in `attachments.json` |
-| `CONFLUENCE_RETRIES` | Retry count for transient HTTP errors, default `3` |
-| `CONFLUENCE_REQUEST_TIMEOUT_SEC` | Per-request timeout, default `60` |
-| `CONFLUENCE_SKIP_UNCHANGED` | Set to `0` to disable default skip-unchanged behavior |
-| `CONFLUENCE_CHROME_PROFILE` | Dedicated Chrome profile dir; overrides `ATLASSIAN_CHROME_PROFILE` |
-| `ATLASSIAN_CHROME_PROFILE` | Shared browser profile dir for Jira and Confluence browser fetchers |
-| `CHROME` / `CHROMIUM` | Browser executable path override |
+| `CONFLUENCE_SITE` | Default origin/application URL |
+| `CONFLUENCE_CONTEXT_PATH` | `auto`, `/wiki`, `/`, or custom context |
+| `CONFLUENCE_RAW_DIR` | Output directory |
+| `CONFLUENCE_BROWSER_BACKEND` | `auto`, `native`, or `windows-wsl` |
+| `CONFLUENCE_BROWSER` | `chrome` or `edge` for Windows/WSL |
+| `CONFLUENCE_CHROME_DEBUG_PORT` | DevTools port; overrides shared variable |
+| `ATLASSIAN_CHROME_DEBUG_PORT` | Shared DevTools port, default `9223` |
+| `CONFLUENCE_CHROME_PROFILE` | Dedicated profile; backend-native path syntax |
+| `ATLASSIAN_CHROME_PROFILE` | Shared native profile override |
+| `CONFLUENCE_FETCH_WAIT_SEC` | SSO wait, default `900` |
+| `CONFLUENCE_MAX_SEARCH_RESULTS` | CQL result bound, default `200` |
+| `CONFLUENCE_MAX_ATTACHMENT_SIZE` | Attachment bound, default `5mb` |
+| `CONFLUENCE_BROWSER_MAX_BINARY_SIZE` | Hard transfer cap, default `100mb` |
+| `CONFLUENCE_RETRIES` | Transient retry count, default `3` |
+| `CONFLUENCE_REQUEST_TIMEOUT_SEC` | Request timeout, default `60` |
+| `CONFLUENCE_SKIP_UNCHANGED` | Set to `0` to disable version skip |
+| `CHROME` / `CHROMIUM` | Native browser executable override |
 
-To reuse one Atlassian SSO login across Jira and Confluence fetches, set a shared profile and port for both tools:
+## Output files
 
-```bash
-export ATLASSIAN_CHROME_PROFILE="$HOME/.local/share/atlassian-browser-fetch-chrome"
-export ATLASSIAN_CHROME_DEBUG_PORT=9223
-```
+Per page:
 
-When reusing an existing DevTools browser on the configured port, the script opens the requested Confluence URL in a new tab before verifying the REST session.
-
-## Output Files
-
-For each page:
-
-- `page.json` — REST content with body.storage, body.view, space, ancestors, labels, version, history.
+- `page.json` — REST content with storage/view bodies, space, ancestors, labels, version, and history.
 - `page.storage.html` — Confluence storage XHTML.
-- `page.view.html` — REST-rendered HTML body.
-- `page.browser.html` — full browser HTML shell/page.
-- `attachments.json` — manifest, including skipped large-file references with URL, file size, and reason.
-- `attachments/` — files downloaded via Confluence attachment links under the max-size threshold.
-- `metadata.json` — fetch metadata and source URLs.
+- `page.view.html` — REST-rendered body.
+- `page.browser.html` — authenticated web response, unless disabled.
+- `attachments.json` — downloaded/skipped/error manifest.
+- `attachments/` — bounded downloads.
+- `metadata.json` — provenance, deployment, version, and transport metadata.
+
+Run manifest:
+
+```text
+raw/confluence-browser-fetch-run.json
+```
 
 ## Troubleshooting
 
-### `no Atlassian cookies yet` / `not authenticated yet`
+### Waiting for SSO to return to the configured origin
 
-Complete SSO in the Chrome window opened by the script. Login-page cookies are not enough; the script waits until a Confluence REST session probe succeeds.
+Finish authentication in the dedicated browser. During Microsoft/SAML redirects no target at the Confluence origin may exist; the fetcher waits for it to return rather than inspecting the identity-provider page.
 
-### `Could not verify authenticated Confluence session`
+### Session probes return 404
 
-The browser did not reach an authenticated Confluence REST session before `--wait` expired. Complete SSO, confirm you can open the target Confluence site in that browser profile, then rerun or increase `--wait`.
-
-### `Page failed HTTP 404`
-
-After authentication is verified, this usually means the authenticated user cannot see the page, or the page ID/site is wrong.
-
-### URL cannot be resolved
-
-Provide the numeric page ID from a URL like:
-
-```text
-/wiki/spaces/ABC/pages/123456/Page+Title
-/wiki/pages/viewpage.action?pageId=123456
-```
-
-Tiny links may not expose the page ID; open them in the browser and copy the expanded URL.
-
-### CQL returns too many pages
-
-Use `--max-search-results N` or a narrower query.
-
-### DevTools port already in use
-
-Use another port:
+The context path is probably wrong. Try one of:
 
 ```bash
-scripts/confluence-browser-fetch.js 123456 --port 9334
+--context-path /
+--context-path /wiki
+--context-path /confluence
 ```
+
+Classic `/pages/viewpage.action` and `/pages/releaseview.action` URLs normally imply `/` unless prefixed.
+
+### Browser request failed / cross-origin redirect
+
+The session may be expired and REST calls are redirecting to SSO. Authenticate in the dedicated browser and retry. Cross-origin response bodies are deliberately unavailable.
+
+### No browser found in WSL
+
+Use the Windows backend rather than attempting to launch a Windows `.exe` as a native Linux browser:
+
+```bash
+--browser-backend windows-wsl
+```
+
+### DevTools endpoint does not start
+
+1. Confirm Windows Chrome/Edge exists.
+2. Confirm the selected port is free.
+3. Confirm WSL can reach Windows loopback.
+4. Do not expose CDP through firewall or LAN changes.
+5. Try another loopback port, for example `--port 9334`.
+
+### Dedicated profile refusal
+
+The launcher refuses non-empty profiles without its marker. Choose a new empty path. Do not bypass this by adding a marker to an everyday profile.
+
+### Page HTTP 401/403/404
+
+- `401`: session not authenticated.
+- `403`: the browser account lacks permission.
+- `404`: page ID, site, context path, or permission may be wrong.
+
+## Confidentiality
+
+Never paste or commit:
+
+- cookies or session headers;
+- SAML request/response values;
+- identity-provider URLs containing transient state;
+- private page exports, attachments, or run manifests;
+- dedicated browser profiles.

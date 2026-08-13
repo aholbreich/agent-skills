@@ -34,6 +34,17 @@ npx skills list -g                                  # list global skills
 | OpenClaw / generic Agent Skills harnesses | Compatible Agent Skills layout | `npx skills add aholbreich/agent-skills -g` or install to `.agents/skills` |
 | Any Agent Skills-compatible tool | Compatible layout | Copy or symlink each folder under `skills/` into the tool's configured skills directory |
 
+## Runtime platform matrix
+
+| Runtime | Confluence fetch | Other skills |
+|---|---:|---:|
+| Linux with native Chromium | Supported/tested | Supported/tested |
+| macOS with native Chromium | Browser paths implemented; end-to-end reports welcome | Browser paths implemented; end-to-end reports welcome |
+| WSL + managed Windows Chrome/Edge | Supported by `confluence-browser-fetch`; requires PowerShell interoperability and loopback connectivity | Not yet supported |
+| Native Windows Node.js | Not currently supported | Not currently supported |
+
+`confluence-browser-fetch` supports Confluence Cloud and Server/Data Center, including root and custom context paths. Its browser-context transport does not export cookies. Other skills currently retain their legacy native-browser cookie-replay transport.
+
 ## Pi-native install commands
 
 Pi can install this repository as a Pi package directly from npm:

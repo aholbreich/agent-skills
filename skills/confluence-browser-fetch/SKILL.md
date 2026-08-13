@@ -1,126 +1,169 @@
 ---
 name: confluence-browser-fetch
-description: Fetch Confluence Cloud pages through an authenticated Chrome browser session when API tokens do not work, especially with Microsoft/SSO. Use to archive Confluence page JSON, storage/view HTML, browser HTML, attachments, CQL search results, or page descendants into a raw wiki folder.
+description: Fetch Confluence Cloud or Server/Data Center pages through a dedicated authenticated browser when API tokens do not work, especially with Microsoft/SSO. Supports native Chromium and managed Windows Chrome/Edge from WSL without exporting cookies. Archive page JSON, storage/view HTML, attachments, CQL results, or descendants into a raw folder.
 license: MIT
-compatibility: Agent Skills standard. Tested with Pi; installable into Claude Code, Codex, OpenClaw/generic .agents skills directories. Requires Node.js 22+ with built-in fetch/WebSocket and a Chromium-compatible browser with remote debugging (Chrome, Chromium, Brave, Edge, or Vivaldi). No npm dependencies.
+compatibility: Agent Skills standard. Tested with Pi; installable into Claude Code, Codex, OpenClaw/generic .agents skills directories. Requires Node.js 22+ and Chromium, or Windows Chrome/Edge when run under WSL with mirrored localhost networking. No npm dependencies.
 ---
 
 # Confluence Browser Fetch
 
-Use this skill when a user wants Confluence pages ingested into an LLM wiki `raw/` folder and normal Atlassian API-token auth is unavailable or inconvenient due to SSO.
+Use this read-only skill to ingest authenticated Confluence pages into an LLM wiki or evidence folder when ordinary API-token authentication is unavailable or inappropriate.
 
-The script opens/reuses Chrome with a dedicated profile, lets the user complete SSO once, extracts Atlassian cookies via Chrome DevTools, verifies they represent an authenticated Confluence REST session, and fetches Confluence REST data plus rendered page HTML and attachments.
+It supports:
 
-## Safety
+- Confluence Cloud, normally under `/wiki`;
+- Confluence Server/Data Center at `/` or a custom context path;
+- native Chrome/Chromium/Brave/Edge/Vivaldi on Linux/macOS;
+- managed Windows Chrome or Edge launched from WSL;
+- page ID/URL acquisition, title lookup, CQL, descendants, version-aware refresh, and bounded attachments.
 
-- Never ask users to paste Confluence cookies or API tokens into chat.
-- Prefer browser automation so secrets remain in the local Chrome profile.
-- Treat fetched pages and attachments as confidential.
-- This skill is read-only: do not create, edit, delete, or move Confluence pages.
+## Authentication and safety
 
-## Script
+The fetcher opens or reuses a **dedicated browser profile** and lets the user complete normal SSO/MFA. It then performs same-origin `GET` requests inside the authenticated Confluence tab with `credentials: include`.
 
-```bash
-scripts/confluence-browser-fetch.js <URL|PAGE-ID> [...] [options]
-```
+For this skill:
 
-Important options:
+- browser cookies are not read, returned, printed, or replayed by Node;
+- CDP cookie/storage APIs are not used;
+- cross-origin requests and redirects are rejected;
+- no create, update, delete, move, form-submit, or other write operation is available;
+- attachment transfer is bounded even if `unlimited` is requested;
+- fetched pages and attachments must be treated as confidential.
 
-```bash
---site URL               Atlassian site, e.g. https://example.atlassian.net
---raw-dir DIR            output raw directory
---space KEY              Confluence space key for --title search
---title TITLE            resolve and fetch page by exact title
---cql CQL                search Confluence and fetch matching pages
---descendants            fetch descendant pages
---max-search-results N   limit CQL result fetches
---max-attachment-size S  skip attachment files larger than S (default 5mb; use unlimited to disable)
---force                  re-fetch even when local page version is current
---no-skip-unchanged      disable version/timestamp skip check
---retries N              retry transient HTTP failures
---request-timeout SEC    per-request timeout
---no-attachments         skip attachments
---no-browser-html        skip rendered browser HTML
-```
+CDP remains a powerful local control interface. Use only the dedicated profile, keep DevTools on loopback, and close the dedicated browser when it is no longer needed.
 
-## Shared Atlassian SSO Session
+## Basic commands
 
-All five Atlassian skills (`jira-browser-fetch`, `jira-update`, `confluence-browser-fetch`, `confluence-update`, `bitbucket-browser-fetch`) default to the same Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`). Log in once via any skill and the others reuse that session automatically — no env vars needed.
-
-**This is a separate Chrome window from any browser the user already has open.** The script always launches its own profile with remote-debugging enabled; cookies from the user's regular Chrome are not read. The user logs in inside the window the script opens; that session is then reused by every Atlassian skill until it expires.
-
-**Reuse signal.** When attaching to an existing session, the script prints `Reusing Chrome DevTools on port 9223` and (if the target tab is open) `Found existing tab for <host>`. When you see those lines, do not ask the user to re-SSO — the session is already valid.
-
-If Chrome/Chromium is installed via Flatpak, Snap, or another non-PATH location, set `CHROME=/path/to/launcher` (or a wrapper script) so the script can find the binary.
-
-Override with `ATLASSIAN_CHROME_PROFILE` and/or `ATLASSIAN_CHROME_DEBUG_PORT` to relocate the shared profile/port, or use skill-specific `*_CHROME_PROFILE` / `*_CHROME_DEBUG_PORT` env vars for isolation.
-
-## Typical Workflow
-
-1. If the user gives a Confluence URL, run the script directly with that URL.
-2. If the user gives a title, ask for the space key or use `--cql`.
-3. Show the command before running it.
-4. If Chrome opens (first run or expired session), ask the user to complete SSO in that window. On subsequent invocations the script reuses the session silently — see the Reuse signal above.
-5. Verify saved files.
-6. If this is an LLM wiki ingest, process the saved `raw/confluence/...` material into `wiki/` per the project `AGENTS.md`.
-
-Example:
+An absolute page URL supplies both the site and page ID:
 
 ```bash
 scripts/confluence-browser-fetch.js \
-  "https://example.atlassian.net/wiki/spaces/ABC/pages/123456/Page+Title" \
-  --site https://example.atlassian.net \
+  'https://example.atlassian.net/wiki/spaces/ABC/pages/123456/Page+Title' \
   --raw-dir ./raw
 ```
 
-Fetch a page and all descendants:
+Classic Server/Data Center URLs are supported:
 
 ```bash
 scripts/confluence-browser-fetch.js \
-  123456 \
-  --site https://example.atlassian.net \
-  --raw-dir ./raw \
-  --descendants
+  'https://confluence.example.com/pages/viewpage.action?pageId=123456' \
+  --raw-dir ./raw
 ```
 
-Fetch by CQL:
+A page ID requires `--site`:
 
 ```bash
-scripts/confluence-browser-fetch.js \
-  --site https://example.atlassian.net \
-  --raw-dir ./raw \
-  --cql 'space = ABC and type = page and text ~ "billing"'
+scripts/confluence-browser-fetch.js 123456 \
+  --site https://confluence.example.com \
+  --context-path / \
+  --raw-dir ./raw
 ```
 
-## Output Layout
+Custom reverse-proxy context:
+
+```bash
+scripts/confluence-browser-fetch.js 123456 \
+  --site https://intranet.example.com \
+  --context-path /confluence \
+  --raw-dir ./raw
+```
+
+## Important options
+
+```text
+--site URL               origin/application URL; optional for absolute page URLs
+--context-path PATH      auto (default), /wiki, /, or custom path
+--raw-dir DIR            output raw directory
+--space KEY              constrain exact-title lookup
+--title TITLE            resolve a page by exact title
+--cql CQL                search and fetch matching pages
+--descendants            fetch descendant pages
+--max-search-results N   bound CQL results
+--max-attachment-size S  default 5mb
+--force                  fetch despite matching local version
+--no-skip-unchanged      disable version comparison
+--no-attachments         skip all attachment downloads
+--no-browser-html        omit browser HTML response
+--browser-backend NAME   auto, native, or windows-wsl
+--browser NAME           chrome or edge for Windows/WSL
+--profile-dir PATH       dedicated profile path; Windows syntax for windows-wsl
+--port PORT              loopback DevTools port, default 9223
+--wait SEC               SSO wait, default 900
+```
+
+## Deployment detection
+
+With `--context-path auto`, the fetcher infers:
+
+- `/wiki` from Cloud-style URLs or `*.atlassian.net` sites;
+- `/` from classic `/pages/viewpage.action`, `/pages/releaseview.action`, `/display/...`, or root `/spaces/...` URLs;
+- a custom prefix from URLs such as `/confluence/pages/viewpage.action`.
+
+Use explicit `--context-path` when a reverse proxy or unusual URL does not expose enough information.
+
+## Windows/WSL
+
+On WSL, `--browser-backend auto` selects `windows-wsl` when `powershell.exe` is available. The launcher uses Windows Chrome by default and stores its dedicated profile at:
+
+```text
+%LOCALAPPDATA%\AgentSkillsBrowserProfiles\Atlassian
+```
+
+The launcher marks profiles it creates and refuses to use a non-empty, unmarked profile directory. It also refuses a DevTools port owned by a different browser/profile.
+
+Requirements:
+
+- Windows Chrome or Edge;
+- PowerShell interoperability from WSL;
+- mirrored localhost networking, or another setup where WSL can reach Windows `127.0.0.1:<port>`;
+- no firewall/LAN exposure of the DevTools port.
+
+Use Edge if required by corporate policy:
+
+```bash
+scripts/confluence-browser-fetch.js '<URL>' --browser-backend windows-wsl --browser edge --raw-dir ./raw
+```
+
+## Typical workflow
+
+1. Run the fetcher with the supplied page URL.
+2. If the dedicated browser opens or the session expired, complete SSO/MFA there.
+3. Do not ask the user to paste cookies, SAML data, passwords, or tokens.
+4. Verify `page.json`, metadata, and capture status before synthesis.
+5. For an LLM wiki, process `raw/confluence/...` according to that repository's evidence rules.
+6. Do not commit private exports to a public repository.
+
+For a first fetch from a sensitive site, prefer:
+
+```bash
+scripts/confluence-browser-fetch.js '<URL>' --no-attachments --raw-dir ./raw
+```
+
+Then enable bounded attachment capture only when needed.
+
+## Output
 
 ```text
 raw/confluence/<SPACE>/<PAGE-ID>-<slug>/
-├── page.json          # Confluence REST content with storage/view HTML and metadata
-├── page.storage.html  # Confluence storage format
-├── page.view.html     # REST-rendered view body
-├── page.browser.html  # browser page HTML, if enabled
-├── metadata.json      # fetch metadata
-├── attachments.json   # attachment manifest, including skipped large-file references
-└── attachments/       # downloaded attachments under max-size threshold
+├── page.json
+├── page.storage.html
+├── page.view.html
+├── page.browser.html
+├── metadata.json
+├── attachments.json
+└── attachments/
 ```
 
-A run manifest is written to:
+The run manifest is:
 
 ```text
 raw/confluence-browser-fetch-run.json
 ```
 
-## Installation / PATH
-
-Use directly by path, or install a symlink:
-
-```bash
-mkdir -p ~/.local/bin
-ln -sf ~/.pi/agent/skills/confluence-browser-fetch/scripts/confluence-browser-fetch.js ~/.local/bin/confluence-browser-fetch
-```
+Metadata records the origin, context path, REST source URL, browser backend, and `browser-context-get` authentication transport. It never records browser credentials.
 
 ## References
 
-- [Usage reference](references/usage.md)
+- [Usage and troubleshooting](references/usage.md)
+- [Architecture and development](references/development.md)
 - [Distribution guide](references/distribution.md)

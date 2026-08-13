@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- `confluence-browser-fetch` now supports Confluence Cloud and Server/Data Center at root or custom context paths, including classic `viewpage.action` and `releaseview.action` URLs.
+- New generic browser-context runtime performs exact-origin, GET-only authenticated requests inside the Confluence tab without reading or exporting cookies.
+- New Windows/WSL backend launches managed Windows Chrome or Edge through PowerShell, uses a marked dedicated profile, verifies DevTools port/profile ownership, and keeps CDP on loopback.
+- Bounded, chunked browser-context attachment transfer with a configurable hard safety cap.
+- Deployment, transport-security, binary-transfer, WSL launcher, and explicit-vendoring tests and development documentation.
+
+Changed:
+
+- `confluence-browser-fetch` can infer `--site` and context path from an absolute page URL.
+- Shared-file vendoring now uses an explicit source/consumer manifest instead of copying the Atlassian cookie library into every skill with a scripts directory.
+- The Confluence fetcher no longer imports the legacy cookie-replay browser library. Jira, Bitbucket, and update skills retain it for compatibility pending separate migrations.
+
 ## 1.1.1 - 2026-05-12
 
 Fixed:

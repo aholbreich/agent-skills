@@ -6,7 +6,7 @@ The package is a pure Agent Skills bundle, compatible with Pi, Claude Code, Code
 
 ## Why this exists
 
-Most Atlassian automation tools assume API tokens. In SSO-locked enterprises, API tokens are often disabled or restricted in ways that make scripted writes painful. These skills route through an authenticated **browser session** instead — you log in to Jira/Confluence/Bitbucket once in Chrome, and the skills replay your cookies via DevTools to make REST calls. No API token required.
+Most Atlassian automation tools assume API tokens. In SSO-locked enterprises, API tokens are often disabled or restricted in ways that make scripted access painful. These skills route through an authenticated **browser session** instead. No API token is required. `confluence-browser-fetch` performs same-origin read-only requests inside the browser without exporting cookies; the other skills currently use the legacy local cookie-replay transport documented in [`SECURITY.md`](SECURITY.md).
 
 Beyond the SSO bypass, the skills are built around three differentiators:
 
@@ -16,9 +16,9 @@ Beyond the SSO bypass, the skills are built around three differentiators:
 
 ## Project status
 
-Opinionated bundle: SSO browser-session auth only, no API tokens or app passwords. The whole stack is built around extracting Chrome cookies via the DevTools Protocol — if API tokens already work for your org, you do not need this. All five Atlassian skills share one Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`) by default; log in once and the others reuse the session.
+Opinionated bundle: SSO browser-session auth only, no API tokens or app passwords. If API tokens already work for your organization, you may not need this. On native Linux/macOS, all five skills share one Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`) by default.
 
-**Tested on Linux (Fedora) at the moment.** macOS browser paths exist in the auto-detection logic but are not end-to-end verified; Windows is unsupported. Reports of what works on other distros or OSes are very welcome — open an issue or PR at [github.com/aholbreich/agent-skills/issues](https://github.com/aholbreich/agent-skills/issues). Feedback on SSO flavors, browser detection, profile/port collisions, and unusual Atlassian tenant shapes is especially useful.
+**Platform status:** native browser operation is tested primarily on Linux (Fedora); macOS browser paths exist but are not end-to-end verified. `confluence-browser-fetch` additionally supports managed Windows Chrome/Edge from WSL with mirrored localhost networking and has a distinct cookie-free browser-context transport. The other four skills do not yet support that Windows/WSL backend. Reports on SSO flavors, browser detection, profile/port collisions, Confluence Server/Data Center deployments, and reverse-proxy context paths are welcome.
 
 ## Skills
 
@@ -26,7 +26,7 @@ Opinionated bundle: SSO browser-session auth only, no API tokens or app password
 |---|---|
 | [`jira-browser-fetch`](skills/jira-browser-fetch/) | Fetch Jira issue JSON, rendered HTML/XML, linked/referenced issues, Jira Software board backlogs, JQL result sets, and attachments through an authenticated Chrome session. |
 | [`jira-update`](skills/jira-update/) | Dry-run-first Jira Cloud writes through an authenticated browser session: create issues, add comments, transition workflows, update fields, and link issues. Markdown-to-ADF conversion by default; ADF passthrough as escape hatch. |
-| [`confluence-browser-fetch`](skills/confluence-browser-fetch/) | Fetch Confluence page JSON, storage/view HTML, browser HTML, descendants, CQL result sets, and attachments through an authenticated Chrome session. |
+| [`confluence-browser-fetch`](skills/confluence-browser-fetch/) | Fetch Confluence Cloud or Server/Data Center page JSON, storage/view HTML, browser HTML, descendants, CQL results, and bounded attachments. Supports native Chromium and managed Windows Chrome/Edge from WSL without exporting cookies. |
 | [`confluence-update`](skills/confluence-update/) | Dry-run-first Confluence page updates, agent-owned block replacement, Markdown-to-storage conversion, and page creation through an authenticated browser session. |
 | [`bitbucket-browser-fetch`](skills/bitbucket-browser-fetch/) | Fetch Bitbucket Cloud project repository inventories and clone URL lists through an authenticated browser session. |
 
@@ -49,6 +49,7 @@ See [`COMPATIBILITY.md`](COMPATIBILITY.md) for details, including collision beha
 
 - Node.js `>=22`.
 - A Chromium-compatible browser: Chrome, Chromium, Brave, Edge, or Vivaldi.
+- For `confluence-browser-fetch` under WSL: Windows Chrome/Edge, PowerShell interoperability, and WSL-to-Windows loopback connectivity.
 - Access to the Jira/Confluence site in the browser account you use.
 - Pi, or any Agent Skills-compatible harness, if you want skill discovery.
 
@@ -205,7 +206,7 @@ bitbucket-browser-fetch
 
 ## Reuse one Atlassian browser login
 
-All five skills share one Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`) by default. Log in once via any skill and the others ride the same SSO session — no env vars required.
+With the native backend, all five skills share one Chrome profile (`~/.local/share/atlassian-browser-chrome`) and DevTools port (`9223`) by default. Log in once via any skill and the others can reuse that browser session. Under WSL, only `confluence-browser-fetch` currently supports launching the managed Windows browser; its default Windows profile is `%LOCALAPPDATA%\AgentSkillsBrowserProfiles\Atlassian`.
 
 To relocate the shared profile or run on a different port:
 
@@ -360,7 +361,16 @@ Fetch one page by URL:
 ```bash
 confluence-browser-fetch \
   'https://example.atlassian.net/wiki/spaces/ABC/pages/123456/Page+Title' \
-  --site https://example.atlassian.net \
+  --raw-dir ./raw
+```
+
+Fetch a Confluence Server/Data Center page through managed Windows Chrome from WSL without exporting cookies:
+
+```bash
+confluence-browser-fetch \
+  'https://confluence.example.com/pages/releaseview.action?pageId=123456' \
+  --browser-backend windows-wsl \
+  --no-attachments \
   --raw-dir ./raw
 ```
 
@@ -391,11 +401,13 @@ jira-browser-fetch PROJ-123 --server https://example.atlassian.net --max-attachm
 confluence-browser-fetch 123456 --site https://example.atlassian.net --max-attachment-size 10mb
 ```
 
-Disable the limit:
+Request the legacy unlimited setting:
 
 ```bash
 --max-attachment-size unlimited
 ```
+
+`confluence-browser-fetch` still applies a browser-transfer safety cap (default `100mb`, configurable with `CONFLUENCE_BROWSER_MAX_BINARY_SIZE`) even with this setting.
 
 ## Example workflow: populating an LLM wiki
 
@@ -420,7 +432,7 @@ pnpm test
 pnpm run ci
 ```
 
-Tests use Node's built-in test runner and cover pure helper logic plus CLI smoke/error paths. Package validation is intentionally lightweight because the scripts have no runtime npm dependencies.
+Tests use Node's built-in test runner and cover helper logic, deployment detection, browser-context origin/read-only invariants, bounded binary transfer, vendoring, and CLI smoke/error paths. Browser SSO remains an explicit manual integration test. Package validation has no runtime npm dependencies.
 
 ## License
 
