@@ -13,7 +13,7 @@ try {
   process.exit(1);
 }
 const { parseSize, formatBytes, slugify, safeName, extractPageId, sameVersion } = require('./lib');
-const { inferConfluenceDeployment } = require('./confluence-deployment');
+const { inferConfluenceDeployment, relatedPagesUrl } = require('./confluence-deployment');
 
 const HARD_BINARY_LIMIT = parseSize(process.env.CONFLUENCE_BROWSER_MAX_BINARY_SIZE || '100mb');
 
@@ -31,7 +31,8 @@ Options:
   --space KEY              Resolve --title inside this space, or constrain CQL
   --title TITLE            Resolve and fetch page by title; repeatable with --space
   --cql CQL                Search Confluence with CQL and fetch matching pages
-  --descendants            Fetch descendant pages of each requested page
+  --children               Fetch only immediate child pages of each requested seed
+  --descendants            Fetch all descendant pages of each requested seed
   --max-search-results N   Max pages to add per CQL search (default: 200)
   --max-attachment-size S  Skip attachment downloads larger than S (default: 5mb)
   --force                  Re-fetch even when local page version is current
@@ -72,6 +73,7 @@ const opts = {
   force: false,
   attachments: true,
   browserHtml: true,
+  children: false,
   descendants: false,
   cqls: [],
   titles: [],
@@ -93,6 +95,7 @@ for (let index = 2; index < process.argv.length; index++) {
     else if (argument === '--space') opts.space = value();
     else if (argument === '--title') opts.titles.push(value());
     else if (argument === '--cql') opts.cqls.push(value());
+    else if (argument === '--children') opts.children = true;
     else if (argument === '--descendants') opts.descendants = true;
     else if (argument === '--max-search-results') opts.maxSearchResults = Number(value());
     else if (argument === '--max-attachment-size') opts.maxAttachmentBytes = parseSize(value());
@@ -121,6 +124,7 @@ if (!Number.isFinite(opts.waitSec) || opts.waitSec < 1) { console.error('error: 
 if (!Number.isInteger(opts.maxSearchResults) || opts.maxSearchResults < 1) { console.error('error: --max-search-results must be a positive integer'); process.exit(2); }
 if (!Number.isInteger(opts.retries) || opts.retries < 0 || opts.retries > 10) { console.error('error: --retries must be from 0 to 10'); process.exit(2); }
 if (!Number.isFinite(opts.requestTimeoutSec) || opts.requestTimeoutSec < 1) { console.error('error: --request-timeout must be positive'); process.exit(2); }
+if (opts.children && opts.descendants) { console.error('error: use either --children or --descendants, not both'); process.exit(2); }
 if (!['auto', 'native', 'windows-wsl'].includes(opts.browserBackend)) { console.error('error: --browser-backend must be auto, native, or windows-wsl'); process.exit(2); }
 if (!['chrome', 'edge'].includes(opts.browser)) { console.error('error: --browser must be chrome or edge'); process.exit(2); }
 
@@ -321,12 +325,16 @@ async function downloadAttachments(page, outDir) {
   return manifest.length;
 }
 
-async function fetchDescendants(pageId) {
+async function fetchRelatedPageIds(pageId, relation) {
+  const direct = relation === 'children';
   const ids = [];
-  let url = `${deployment.api(`content/${encodeURIComponent(pageId)}/descendant/page`)}?limit=200&expand=space,version`;
+  let url = relatedPagesUrl(deployment, pageId, relation);
   while (url) {
     const result = await fetchJson(url);
-    if (result.status !== 200 || !result.json) throw new Error(`Descendants failed HTTP ${result.status}: ${(result.text || '').slice(0, 300)}`);
+    if (result.status !== 200 || !result.json) {
+      const label = direct ? 'Children' : 'Descendants';
+      throw new Error(`${label} failed HTTP ${result.status}: ${(result.text || '').slice(0, 300)}`);
+    }
     for (const page of result.json.results || []) if (page.id) ids.push(String(page.id));
     const next = result.json._links && result.json._links.next;
     url = next ? deployment.web(next) : null;
@@ -395,7 +403,7 @@ async function main() {
   const searches = [];
 
   for (const input of inputs) {
-    try { queue.push({ id: await resolveInputToPageId(input), from: input }); }
+    try { queue.push({ id: await resolveInputToPageId(input), from: input, expandOneLevel: opts.children, expandDescendants: opts.descendants }); }
     catch (error) { failed.push({ input, error: error.message }); console.error(`FAILED resolving ${input}: ${error.message}`); }
   }
 
@@ -409,7 +417,7 @@ async function main() {
       const ids = await searchCql(cql);
       searches.push({ cql, ids });
       console.log(`CQL matched ${ids.length} page(s): ${ids.join(' ') || '(none)'}`);
-      for (const id of ids) queue.push({ id, from: `CQL: ${cql}` });
+      for (const id of ids) queue.push({ id, from: `CQL: ${cql}`, expandOneLevel: opts.children, expandDescendants: opts.descendants });
     } catch (error) {
       failed.push({ input: `CQL: ${cql}`, error: error.message });
       console.error(`CQL FAILED: ${error.message}`);
@@ -426,10 +434,14 @@ async function main() {
     try {
       const { page, outDir, skipped } = await fetchOnePage(item.id);
       fetched.push({ id: page.id, title: page.title, outDir, skipped });
-      if (opts.descendants) {
-        const descendants = await fetchDescendants(page.id);
+      if (item.expandDescendants) {
+        const descendants = await fetchRelatedPageIds(page.id, 'descendants');
         console.log(`Descendants: ${descendants.join(' ') || '(none)'}`);
-        for (const id of descendants) if (!seen.has(id) && !queue.some(entry => entry.id === id)) queue.push({ id, from: `descendant of ${page.id}` });
+        for (const id of descendants) if (!seen.has(id) && !queue.some(entry => entry.id === id)) queue.push({ id, from: `descendant of ${page.id}`, expandOneLevel: false });
+      } else if (item.expandOneLevel) {
+        const children = await fetchRelatedPageIds(page.id, 'children');
+        console.log(`Children: ${children.join(' ') || '(none)'}`);
+        for (const id of children) if (!seen.has(id) && !queue.some(entry => entry.id === id)) queue.push({ id, from: `child of ${page.id}`, expandOneLevel: false });
       }
     } catch (error) {
       failed.push({ input: item.id, error: error.message });

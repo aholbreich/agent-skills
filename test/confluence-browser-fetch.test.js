@@ -10,6 +10,7 @@ const {
   inferConfluenceDeployment,
   inferContextFromPageUrl,
   normalizeContextPath,
+  relatedPagesUrl,
 } = require('../skills/confluence-browser-fetch/scripts/confluence-deployment');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -74,6 +75,20 @@ test('Confluence deployment supports explicit custom reverse-proxy context', () 
   assert.equal(deployment.web('/download/attachments/1/a.txt'), 'https://intranet.example.com/confluence/download/attachments/1/a.txt');
 });
 
+test('Confluence deployment builds distinct immediate-child and recursive-descendant endpoints', () => {
+  const deployment = inferConfluenceDeployment({ site: 'https://example.atlassian.net' });
+  assert.equal(
+    relatedPagesUrl(deployment, '123456', 'children'),
+    'https://example.atlassian.net/wiki/rest/api/content/123456/child/page?limit=200&expand=space,version'
+  );
+  assert.equal(
+    relatedPagesUrl(deployment, '123456', 'descendants'),
+    'https://example.atlassian.net/wiki/rest/api/content/123456/descendant/page?limit=200&expand=space,version'
+  );
+  assert.throws(() => relatedPagesUrl(deployment, 'bad', 'children'), /Invalid/);
+  assert.throws(() => relatedPagesUrl(deployment, '123456', 'parents'), /Unsupported/);
+});
+
 test('Confluence deployment rejects mixed origins and detects context markers', () => {
   assert.equal(inferContextFromPageUrl(new URL('https://example.com/wiki/spaces/A/pages/1/T')), '/wiki');
   assert.equal(inferContextFromPageUrl(new URL('https://example.com/confluence/pages/viewpage.action?pageId=1')), '/confluence');
@@ -108,6 +123,7 @@ test('confluence CLI --help exits successfully without browser', () => {
   assert.match(result.stdout, /Usage: confluence-browser-fetch/);
   assert.match(result.stdout, /Cloud or Server\/Data Center/);
   assert.match(result.stdout, /browser-context requests/i);
+  assert.match(result.stdout, /--children\s+Fetch only immediate child pages/);
 });
 
 test('confluence CLI fails fast when site and absolute URL are missing', () => {
@@ -123,6 +139,12 @@ test('confluence CLI validates backend before browser launch', () => {
   const result = spawnSync(process.execPath, [script, '123456', '--site', 'https://confluence.example.com', '--browser-backend', 'remote'], { encoding: 'utf8' });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /browser-backend/);
+});
+
+test('confluence CLI rejects children and descendants together before browser launch', () => {
+  const result = spawnSync(process.execPath, [script, '123456', '--site', 'https://confluence.example.com', '--children', '--descendants'], { encoding: 'utf8' });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /either --children or --descendants/);
 });
 
 test('confluence browser-context runtime is self-contained without legacy cookie library', () => {

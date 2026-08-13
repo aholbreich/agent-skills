@@ -15,7 +15,7 @@ It supports:
 - Confluence Server/Data Center at `/` or a custom context path;
 - native Chrome/Chromium/Brave/Edge/Vivaldi on Linux/macOS;
 - managed Windows Chrome or Edge launched from WSL;
-- page ID/URL acquisition, title lookup, CQL, descendants, version-aware refresh, and bounded attachments.
+- page ID/URL acquisition, title lookup, CQL, immediate children or full descendants, version-aware refresh, and bounded attachments.
 
 ## Authentication and safety
 
@@ -77,7 +77,8 @@ scripts/confluence-browser-fetch.js 123456 \
 --space KEY              constrain exact-title lookup
 --title TITLE            resolve a page by exact title
 --cql CQL                search and fetch matching pages
---descendants            fetch descendant pages
+--children               fetch immediate children only (one level)
+--descendants            fetch all descendant pages
 --max-search-results N   bound CQL results
 --max-attachment-size S  default 5mb
 --force                  fetch despite matching local version

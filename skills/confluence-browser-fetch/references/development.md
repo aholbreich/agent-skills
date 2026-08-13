@@ -137,6 +137,7 @@ Important fixture/test categories:
 
 - Cloud `/wiki`, root Server/DC, and custom contexts;
 - classic `viewpage.action` and `releaseview.action` page IDs;
+- direct-child (`child/page`) versus recursive descendant (`descendant/page`) scope;
 - exact-origin rejection;
 - GET + `credentials: include` expression shape;
 - bounded binary chunking and cleanup;

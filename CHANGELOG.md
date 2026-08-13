@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- `confluence-browser-fetch --children` fetches only immediate child pages of each requested seed, providing a least-scope alternative to recursive `--descendants`.
+
 ## 1.2.0 - 2026-08-13
 
 Added:

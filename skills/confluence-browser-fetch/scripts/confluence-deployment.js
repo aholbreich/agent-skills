@@ -39,6 +39,14 @@ function inferContextFromPageUrl(url) {
   return null;
 }
 
+function relatedPagesUrl(deployment, pageId, relation) {
+  if (!deployment || typeof deployment.api !== 'function') throw new Error('A Confluence deployment descriptor is required');
+  if (!/^\d+$/.test(String(pageId))) throw new Error(`Invalid Confluence page id: ${pageId}`);
+  if (!['children', 'descendants'].includes(relation)) throw new Error(`Unsupported page relation: ${relation}`);
+  const segment = relation === 'children' ? 'child' : 'descendant';
+  return `${deployment.api(`content/${encodeURIComponent(pageId)}/${segment}/page`)}?limit=200&expand=space,version`;
+}
+
 function inferConfluenceDeployment({ site = '', inputs = [], contextPath = 'auto' } = {}) {
   const absoluteInputs = inputs.filter(input => /^https?:\/\//i.test(String(input))).map(input => parseHttpsUrl(input, 'Confluence input URL'));
   let siteUrl = null;
@@ -105,4 +113,5 @@ module.exports = {
   inferConfluenceDeployment,
   inferContextFromPageUrl,
   normalizeContextPath,
+  relatedPagesUrl,
 };

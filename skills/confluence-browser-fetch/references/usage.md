@@ -152,11 +152,21 @@ First privacy-conscious probe without attachments:
 confluence-browser-fetch '<URL>' --no-attachments --raw-dir ./raw
 ```
 
-Page and descendants:
+Page and immediate children only:
+
+```bash
+confluence-browser-fetch '<URL>' --children --raw-dir ./raw
+```
+
+`--children` expands only user-supplied page/CQL seeds. Pages added as children are not expanded again.
+
+Page and all descendants:
 
 ```bash
 confluence-browser-fetch '<URL>' --descendants --raw-dir ./raw
 ```
+
+`--children` and `--descendants` are mutually exclusive.
 
 Exact title in a space:
 

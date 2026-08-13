@@ -374,14 +374,16 @@ confluence-browser-fetch \
   --raw-dir ./raw
 ```
 
-Fetch a page and all descendants:
+Fetch a page and only its immediate children:
 
 ```bash
 confluence-browser-fetch 123456 \
   --site https://example.atlassian.net \
   --raw-dir ./raw \
-  --descendants
+  --children
 ```
+
+Use `--descendants` instead when the complete recursive subtree is intentionally required.
 
 Fetch by CQL:
 
